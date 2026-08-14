@@ -1,13 +1,415 @@
-<html>
-  <head>
-    <title>wuji blong</title>
-  </head>
-  <body>
-    <h1>欢迎来到无极的博客</h1>
-    <p>项目:</p>
-    <ul>
-      <li><a href="https://wuji101026.github.io/xueduoduo/">学多多</a></li>
-    </ul>
-  </body>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>无极的博客</title>
+    <style>
+        /* ---------- 全局重置 & 字体 ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            background: linear-gradient(145deg, #f7f0fc 0%, #e9def5 100%);
+            padding: 24px;
+            margin: 0;
+        }
+
+        /* ---------- 卡片容器 ---------- */
+        .card {
+            max-width: 640px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 40px;
+            padding: 48px 40px 40px;
+            box-shadow:
+                0 30px 60px -20px rgba(90, 60, 120, 0.25),
+                0 8px 20px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 40px 80px -24px rgba(90, 60, 120, 0.30),
+                0 8px 24px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        /* ---------- 头部装饰 ---------- */
+        .header-decoration {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot-1 {
+            background: #c4a0e8;
+        }
+        .dot-2 {
+            background: #b38bdb;
+        }
+        .dot-3 {
+            background: #a076cc;
+        }
+
+        .header-sub {
+            font-size: 14px;
+            font-weight: 500;
+            color: #8a75a8;
+            letter-spacing: 0.3px;
+            margin-left: 6px;
+        }
+
+        /* ---------- 标题 ---------- */
+        .title {
+            font-size: 40px;
+            font-weight: 700;
+            color: #2d1b3e;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .title .wave {
+            display: inline-block;
+            animation: wave 2.4s ease-in-out infinite;
+            transform-origin: 70% 70%;
+        }
+
+        @keyframes wave {
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+            25% {
+                transform: rotate(12deg);
+            }
+            50% {
+                transform: rotate(-6deg);
+            }
+            75% {
+                transform: rotate(10deg);
+            }
+        }
+
+        .title-badge {
+            font-size: 14px;
+            font-weight: 500;
+            background: linear-gradient(135deg, #c4a0e8, #a076cc);
+            color: #fff;
+            padding: 2px 16px;
+            border-radius: 100px;
+            letter-spacing: 0.3px;
+            box-shadow: 0 2px 8px rgba(160, 118, 204, 0.25);
+        }
+
+        /* ---------- 描述 ---------- */
+        .description {
+            font-size: 18px;
+            color: #4d3a62;
+            line-height: 1.7;
+            margin-top: 4px;
+            margin-bottom: 32px;
+            padding-left: 2px;
+            font-weight: 400;
+        }
+
+        .description span {
+            background: linear-gradient(120deg, rgba(196, 160, 232, 0.25), rgba(160, 118, 204, 0.15));
+            padding: 0 6px;
+            border-radius: 4px;
+            font-weight: 450;
+        }
+
+        /* ---------- 分隔线 ---------- */
+        .divider {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #c4a0e8, #a076cc, #8a5fb5);
+            border-radius: 4px;
+            margin-bottom: 28px;
+        }
+
+        /* ---------- 项目列表 ---------- */
+        .project-section {
+            margin-top: 4px;
+        }
+
+        .project-label {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #8a75a8;
+            margin-bottom: 16px;
+        }
+
+        .project-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .project-list li {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 18px;
+            padding: 4px 4px 4px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+        }
+
+        .project-list li:hover {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 8px 24px -8px rgba(90, 60, 120, 0.15);
+            transform: translateX(4px);
+        }
+
+        .project-list li a {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 500;
+            color: #2d1b3e;
+            padding: 12px 0;
+            transition: color 0.2s ease;
+        }
+
+        .project-list li a:hover {
+            color: #7b4fa0;
+        }
+
+        .project-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #e8def5, #d6c6ea);
+            border-radius: 12px;
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: background 0.25s ease, transform 0.2s ease;
+        }
+
+        .project-list li:hover .project-icon {
+            background: linear-gradient(135deg, #d6c6ea, #c4a0e8);
+            transform: scale(1.04) rotate(-2deg);
+        }
+
+        .project-arrow {
+            margin-left: auto;
+            color: #b8a2ce;
+            font-size: 20px;
+            font-weight: 300;
+            transition: transform 0.25s ease, color 0.2s ease;
+            padding-right: 8px;
+        }
+
+        .project-list li:hover .project-arrow {
+            transform: translateX(4px) scale(1.1);
+            color: #7b4fa0;
+        }
+
+        /* ---------- 底部信息 ---------- */
+        .footer-note {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(196, 160, 232, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .footer-note p {
+            font-size: 14px;
+            color: #9b86b3;
+            letter-spacing: 0.2px;
+        }
+
+        .footer-note .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #7b4fa0;
+            font-weight: 450;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #5fc7a7;
+            display: inline-block;
+            animation: pulse-dot 2s ease-in-out infinite;
+            box-shadow: 0 0 0 0 rgba(95, 199, 167, 0.3);
+        }
+
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(95, 199, 167, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(95, 199, 167, 0);
+            }
+        }
+
+        /* ---------- 响应式 ---------- */
+        @media (max-width: 600px) {
+            .card {
+                padding: 32px 24px 28px;
+                border-radius: 28px;
+            }
+
+            .title {
+                font-size: 30px;
+            }
+
+            .title-badge {
+                font-size: 12px;
+                padding: 1px 14px;
+            }
+
+            .description {
+                font-size: 16px;
+            }
+
+            .project-list li a {
+                font-size: 16px;
+                padding: 10px 0;
+            }
+
+            .project-icon {
+                width: 34px;
+                height: 34px;
+                font-size: 17px;
+            }
+
+            .project-list li {
+                padding: 2px 2px 2px 16px;
+            }
+
+            .footer-note {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .card {
+                padding: 24px 18px 22px;
+                border-radius: 24px;
+            }
+
+            .title {
+                font-size: 26px;
+            }
+
+            .description {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+
+        <!-- 头部装饰点 -->
+        <div class="header-decoration">
+            <span class="dot dot-1"></span>
+            <span class="dot dot-2"></span>
+            <span class="dot dot-3"></span>
+            <span class="header-sub">· 此刻</span>
+        </div>
+
+        <!-- 主标题 -->
+        <h1 class="title">
+            <span class="wave">👋</span>
+            欢迎来到无极的博客
+            <span class="title-badge">✨ 新</span>
+        </h1>
+
+        <!-- 描述 -->
+        <p class="description">
+            记录 · 分享 · 成长<br />
+            <span>这里存放着我的一些小项目</span>
+        </p>
+
+        <!-- 分隔线 -->
+        <div class="divider"></div>
+
+        <!-- 项目列表 -->
+        <div class="project-section">
+            <div class="project-label">📁 项目</div>
+            <ul class="project-list">
+                <li>
+                    <a href="https://wuji101026.github.io/xueduoduo/" target="_blank" rel="noopener noreferrer">
+                        <span class="project-icon">📖</span>
+                        <span>学多多</span>
+                        <span class="project-arrow">→</span>
+                    </a>
+                </li>
+                <!-- 你可以继续在这里添加更多项目 -->
+                <!--
+                <li>
+                    <a href="#" target="_blank" rel="noopener noreferrer">
+                        <span class="project-icon">🛠️</span>
+                        <span>项目名称</span>
+                        <span class="project-arrow">→</span>
+                    </a>
+                </li>
+                -->
+            </ul>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer-note">
+            <p>© 2026 无极</p>
+            <div class="status">
+                <span class="status-dot"></span>
+                在线
+            </div>
+        </div>
+
+    </div>
+
+</body>
 </html>
