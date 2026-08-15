@@ -62,16 +62,24 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: var(--nav-h);
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
         body {
             font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
             overflow-x: hidden;
+            overscroll-behavior-y: contain;
             -webkit-font-smoothing: antialiased;
             transition: background 0.4s ease, color 0.4s ease;
         }
+        /* 去除移动端点击高亮；交互元素统一用 :active 反馈代替（见「触屏反馈」段） */
+        a, button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
         /* ========== 背景层 ========== */
         .bg-fx {
@@ -144,6 +152,8 @@
             justify-content: space-between;
             gap: 16px;
             padding: 14px clamp(18px, 5vw, 56px);
+            padding-left: max(clamp(18px, 5vw, 56px), env(safe-area-inset-left));
+            padding-right: max(clamp(18px, 5vw, 56px), env(safe-area-inset-right));
             background: var(--nav-bg);
             backdrop-filter: blur(16px) saturate(150%);
             -webkit-backdrop-filter: blur(16px) saturate(150%);
@@ -238,6 +248,8 @@
             flex-direction: column;
             gap: 4px;
             padding: 12px clamp(18px, 5vw, 56px) 18px;
+            padding-left: max(clamp(18px, 5vw, 56px), env(safe-area-inset-left));
+            padding-right: max(clamp(18px, 5vw, 56px), env(safe-area-inset-right));
             background: var(--nav-bg);
             backdrop-filter: blur(16px) saturate(150%);
             -webkit-backdrop-filter: blur(16px) saturate(150%);
@@ -245,9 +257,13 @@
             opacity: 0;
             transform: translateY(-12px);
             pointer-events: none;
-            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.16,1,.36,1);
+            visibility: hidden;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.16,1,.36,1), visibility 0s linear 0.3s;
         }
-        .mobile-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+        .mobile-menu.open {
+            opacity: 1; transform: none; pointer-events: auto; visibility: visible;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(.16,1,.36,1), visibility 0s;
+        }
         .mobile-menu a {
             padding: 13px 14px;
             font-size: 16px;
@@ -267,26 +283,13 @@
         .hero {
             position: relative;
             min-height: calc(100vh - var(--nav-h));
+            min-height: calc(100svh - var(--nav-h));
             display: grid;
             grid-template-columns: 1.15fr 0.85fr;
             align-items: center;
             gap: clamp(28px, 5vw, 72px);
             padding: clamp(40px, 8vh, 96px) 0;
         }
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            padding: 7px 15px;
-            border: 1px solid var(--border);
-            border-radius: 100px;
-            background: var(--panel);
-        }
-
         .hero h1 {
             font-size: clamp(40px, 7vw, 76px);
             font-weight: 850;
@@ -307,24 +310,6 @@
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
         }
-        .hero-sub {
-            font-size: clamp(15px, 2vw, 18px);
-            color: var(--text-2);
-            max-width: 54ch;
-            margin: 4px 0 4px;
-        }
-        .tags { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 8px; }
-        .tag {
-            font-size: 12.5px;
-            padding: 6px 13px;
-            border-radius: 100px;
-            color: var(--text-2);
-            background: var(--panel);
-            border: 1px solid var(--border);
-            transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
-        }
-        .tag:hover { color: var(--text); border-color: var(--border-strong); background: var(--panel-hover); }
-
         .cta { display: flex; flex-wrap: wrap; gap: 14px; }
 
         /* Hero 入场动画（仅加载时播放一次，带错落延迟） */
@@ -333,10 +318,7 @@
             to   { opacity: 1; transform: none; }
         }
         .hero-copy > * { animation: heroIn 0.9s cubic-bezier(.16,1,.36,1) both; }
-        .hero-copy .eyebrow { animation-delay: 0.05s; }
         .hero-copy h1 { animation-delay: 0.15s; }
-        .hero-copy .hero-sub { animation-delay: 0.22s; }
-        .hero-copy .tags { animation-delay: 0.27s; }
         .hero-copy .cta { animation-delay: 0.32s; }
         .hero-visual { animation: heroIn 1s cubic-bezier(.16,1,.36,1) 0.22s both; }
 
@@ -395,27 +377,20 @@
             color: transparent;
             filter: drop-shadow(0 18px 40px var(--glow));
             animation: floatMono 6s ease-in-out infinite;
+            position: relative;
+            z-index: 2; /* 无J 位于三体之上，作中心焦点 */
         }
         @keyframes floatMono {
             0%, 100% { transform: translateY(0) rotate(-2deg); }
             50% { transform: translateY(-14px) rotate(2deg); }
         }
-        .orbit {
+        /* 三体运动画布：3D 引力模拟（figure-eight 解）+ 透视投影，取代原虚线轨道 */
+        .orbit3d {
             position: absolute; inset: 0;
-            border: 1px dashed var(--border-strong);
-            border-radius: 50%;
-            width: 78%; height: 78%;
-            margin: auto;
-            animation: spin 28s linear infinite;
+            width: 100%; height: 100%;
+            display: block;
+            z-index: 1;
         }
-        .orbit::before, .orbit::after {
-            content: "";
-            position: absolute;
-            width: 12px; height: 12px; border-radius: 50%;
-        }
-        .orbit::before { top: -6px; left: 50%; background: var(--accent-2); box-shadow: 0 0 14px var(--accent-2); }
-        .orbit::after { bottom: 18%; right: -6px; background: var(--accent-3); box-shadow: 0 0 14px var(--accent-3); }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* 向下滚动指示器 */
         .scroll-hint {
@@ -559,13 +534,12 @@
             transition: color 0.2s ease, background 0.2s ease;
         }
         .f-links a:hover { color: var(--text); background: var(--panel); }
-        .f-copy { width: 100%; text-align: center; color: var(--text-faint); font-size: 13px; margin-top: 6px; }
 
         /* ========== 回到顶部按钮 ========== */
         .to-top {
             position: fixed;
-            right: clamp(16px, 3vw, 28px);
-            bottom: clamp(16px, 3vw, 28px);
+            right: max(clamp(16px, 3vw, 28px), env(safe-area-inset-right));
+            bottom: max(clamp(16px, 3vw, 28px), env(safe-area-inset-bottom));
             width: 48px; height: 48px;
             display: grid;
             place-items: center;
@@ -600,24 +574,58 @@
             border-radius: 8px;
         }
 
+        /* ========== 触屏反馈（手机操作逻辑） ========== */
+        /* 触屏设备：禁用仅 hover 的位移/倾斜，避免点击后「粘滞 hover」 */
+        @media (hover: none) {
+            .card-project:hover { transform: none; box-shadow: none; background: var(--panel); }
+            .btn-primary:hover,
+            .btn-ghost:hover { transform: none; }
+            .nav-links a:hover { color: var(--text-2); background: transparent; }
+        }
+        /* 触摸按压反馈：跟手、轻微回弹 */
+        .btn:active { transform: scale(0.96); }
+        .card-project:active { transform: scale(0.985); background: var(--panel-hover); }
+        .theme-toggle:active,
+        .nav-toggle:active { transform: scale(0.92); }
+        .nav-links a:active,
+        .mobile-menu a:active { background: var(--panel); color: var(--text); }
+
         /* ========== 响应式 ========== */
         @media (max-width: 860px) {
             .hero { grid-template-columns: 1fr; text-align: left; min-height: auto; padding-top: 48px; }
-            .hero-visual { order: -1; max-width: 320px; width: 100%; margin: 0 auto; }
+            .hero-visual { order: -1; max-width: min(320px, 78vw); width: 100%; margin: 0 auto; }
         }
         @media (max-width: 560px) {
+            :root { --nav-h: 60px; }
             .nav-links { display: none; }
             .nav-toggle { display: grid; }
             .scroll-hint { display: none; }
+            /* 主行动按钮整行铺满，拇指好点 */
+            .cta { flex-direction: column; }
+            .cta .btn { width: 100%; justify-content: center; }
+            /* 页脚窄屏堆叠 */
+            .footer-inner { flex-direction: column; align-items: flex-start; gap: 18px; }
+            .contact { padding: clamp(32px, 8vw, 48px) 18px; }
+        }
+        @media (max-width: 420px) {
+            .hero { padding-top: 30px; }
+            .hero h1 { font-size: clamp(30px, 9vw, 42px); letter-spacing: -1px; }
+            .hero-visual { max-width: 250px; }
+            .card-project { padding: 20px; gap: 12px; }
+            .card-project .p-icon { width: 46px; height: 46px; font-size: 23px; }
+            .sec-head h2 { font-size: clamp(24px, 7vw, 32px); }
+            .contact h2 { font-size: clamp(24px, 7vw, 34px); }
+            .f-brand p { font-size: 13px; }
+        }
+        /* 大于 560 时强制隐藏移动菜单（避免横屏/旋转后残留） */
+        @media (min-width: 561px) {
+            .mobile-menu { display: none !important; }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after { animation: none !important; transition: none !important; }
-            .reveal { opacity: 1; transform: none; }
-            .scroll-hint { opacity: 0.9; }
-            html { scroll-behavior: auto; }
-            .cursor-glow { display: none; }
-        }
+        /* 本站点刻意不响应系统「减弱动效 (prefers-reduced-motion: reduce)」——
+           所有动画（背景流光、文字渐变流光、无J 浮动、轨道旋转、Hero 入场、滚动揭示、
+           磁力按钮、卡片 3D 倾斜、光标光晕、平滑回到顶部）一律按设备是否支持 hover 决定是否运行，
+           忽略该无障碍偏好。此为站点所有者主动决定。 */
     </style>
     <script>
         // 防首屏闪烁（FOUC）：在 <body> 解析前定好主题
@@ -661,23 +669,14 @@
     <!-- Hero -->
     <header class="wrap hero" id="top">
         <div class="hero-copy">
-            <span class="eyebrow">无极 · 博客</span>
             <h1>你好，我是 <span class="grad">无极</span></h1>
-            <p class="hero-sub">一名热爱把想法做成产品的前端开发者，喜欢折腾交互、动效与离线可用的小工具。在这里记录学习与作品。</p>
-            <div class="tags">
-                <span class="tag">前端</span>
-                <span class="tag">交互设计</span>
-                <span class="tag">动效</span>
-                <span class="tag">独立开发</span>
-                <span class="tag">AI 应用</span>
-            </div>
             <div class="cta">
                 <a class="btn btn-primary" href="#projects">查看项目 →</a>
                 <a class="btn btn-ghost" href="#contact">联系我</a>
             </div>
         </div>
         <div class="hero-visual" aria-hidden="true">
-            <div class="orbit"></div>
+            <canvas class="orbit3d" id="threeBody"></canvas>
             <div class="mono">无J</div>
         </div>
         <a class="scroll-hint" href="#projects" aria-label="向下浏览">向下探索 <span>↓</span></a>
@@ -703,14 +702,13 @@
             </a>
             <!-- 需要新增项目，复制上面的 <a class="card-project"> 块即可 -->
         </div>
-        <p class="empty-note reveal">更多项目正在路上 ✦ 想合作或交流，欢迎下方联系。</p>
+        <p class="empty-note reveal">更多项目正在路上</p>
     </section>
 
     <!-- 联系 -->
     <section class="wrap section-pad" id="contact">
         <div class="contact reveal">
             <h2>联系方式</h2>
-            <p>无论是项目合作、技术交流还是单纯聊聊，都欢迎随时找我。</p>
             <div class="cta">
                 <a class="btn btn-primary" href="https://github.com/wuji101026" target="_blank" rel="noopener">GitHub 主页</a>
                 <a class="btn btn-ghost" href="mailto:1415789411@qq.com">发邮件 · 主邮箱</a>
@@ -735,7 +733,6 @@
                 <a href="#contact">联系</a>
                 <a href="https://github.com/wuji101026" target="_blank" rel="noopener">GitHub</a>
             </nav>
-            <div class="f-copy">© 2026 无极 · 用代码与好奇构建。</div>
         </div>
     </footer>
 
@@ -838,11 +835,11 @@
             progressEl.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
         }
 
-        // 光标光晕 + 卡片 3D 倾斜（尊重「减弱动效」偏好；触屏不显示光晕也不跑磁力，避免按钮漂移）
-        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // 光标光晕 + 卡片 3D 倾斜 + 按钮磁力：强制开启，忽略系统「减弱动效」偏好
+        // 仅由设备是否支持 hover 决定（触屏不跑，避免按钮漂移），不再受 reduceMotion 影响
         var canHover = window.matchMedia('(hover: hover)').matches;
         var cursorGlow = document.getElementById('cursorGlow');
-        if (!reduceMotion && canHover) {
+        if (canHover) {
             window.addEventListener('pointermove', function (e) {
                 cursorGlow.style.transform = 'translate3d(' + e.clientX + 'px,' + e.clientY + 'px,0)';
             }, { passive: true });
@@ -980,25 +977,25 @@
 
         // 回到顶部按钮：滚动一定距离后浮现（统一在 onScroll 中处理）
         var toTop = document.getElementById('toTop');
-        // 回到顶部：线性（匀速）滚动，干脆利落
+        // 回到顶部：加速（ease-in）滚动——先慢后快，越接近顶部越快
         function scrollToTopLinear() {
             var startY = window.scrollY;
             if (startY <= 0) return;
-            var dur = Math.min(3500, Math.max(1200, startY * 1.5)); // 距离越远略久，但有界（进一步放慢，匀速上滑更明显）
+            var dur = Math.min(900, Math.max(300, startY * 0.4)); // 距离越远略久，但有界（短页 300ms、长页封顶 900ms）
             var startTime = null;
             function step(now) {
                 if (startTime === null) startTime = now;
                 var t = Math.min((now - startTime) / dur, 1);
+                var eased = t * t; // ease-in：进度先慢后快，呈现加速上滑
                 // 强制 behavior:'instant' 瞬时定位：'auto' 会继承 html{scroll-behavior:smooth}，
-                // 导致每帧又被平滑化一次，匀速节奏被覆盖、看起来仍是一瞬到顶
-                window.scrollTo({ top: startY * (1 - t), left: 0, behavior: 'instant' });
+                // 导致每帧又被平滑化一次，加速节奏被覆盖、看起来仍是一瞬到顶
+                window.scrollTo({ top: startY * (1 - eased), left: 0, behavior: 'instant' });
                 if (t < 1) requestAnimationFrame(step);
             }
             requestAnimationFrame(step);
         }
         toTop.addEventListener('click', function () {
-            if (reduceMotion) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
-            else { scrollToTopLinear(); }
+            scrollToTopLinear();
         });
 
         // 统一滚动处理（rAF 节流：单次滚动只触发一帧，合并描边/进度/回到顶部/导航高亮）
@@ -1017,6 +1014,165 @@
         }
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll();
+
+        // ========== 三体运动（3D 引力模拟 + 透视投影） ==========
+        // 采用经典的 figure-eight（8 字）周期解作基础动力学，再对平面做缓慢 3D 旋转，
+        // 配合透视投影 → 三颗发光星体在三维空间里绕飞，带拖尾与引力三角网。
+        (function () {
+            var canvas = document.getElementById('threeBody');
+            if (!canvas) return;
+            var ctx = canvas.getContext('2d');
+            var host = canvas.parentElement;
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            var W = 0, H = 0;
+            function resize() {
+                var r = host.getBoundingClientRect();
+                var s = Math.max(1, Math.min(r.width, r.height));
+                W = s; H = s;
+                canvas.width = Math.round(s * dpr);
+                canvas.height = Math.round(s * dpr);
+                canvas.style.width = s + 'px';
+                canvas.style.height = s + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            var colors = ['#8b6dff', '#5ad1ff', '#ff6fb0']; // accent / accent-2 / accent-3
+            var G = 1, SUB_H = 0.004, SPEED = 0.55, TRAIL = 24;
+            // figure-eight 初始条件（归一化单位，等质量，G=1）
+            var bodies = [
+                { x: 0.97000436, y: -0.24308753, z: 0, vx: 0.466203685, vy: 0.43236573, vz: 0, m: 1, c: colors[0] },
+                { x: -0.97000436, y: 0.24308753, z: 0, vx: 0.466203685, vy: 0.43236573, vz: 0, m: 1, c: colors[1] },
+                { x: 0, y: 0, z: 0, vx: -0.93240737, vy: -0.86473146, vz: 0, m: 1, c: colors[2] }
+            ];
+            var trail = [[], [], []];
+
+            function accel() {
+                var a = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }];
+                for (var i = 0; i < 3; i++) {
+                    for (var j = 0; j < 3; j++) {
+                        if (i === j) continue;
+                        var dx = bodies[j].x - bodies[i].x,
+                            dy = bodies[j].y - bodies[i].y,
+                            dz = bodies[j].z - bodies[i].z;
+                        var d2 = dx * dx + dy * dy + dz * dz;
+                        var inv = 1 / Math.sqrt(d2);
+                        var f = G * bodies[j].m * inv * inv * inv; // G*m/d^3
+                        a[i].x += f * dx; a[i].y += f * dy; a[i].z += f * dz;
+                    }
+                }
+                return a;
+            }
+            function verlet(h) {
+                var a0 = accel();
+                for (var i = 0; i < 3; i++) {
+                    bodies[i].x += bodies[i].vx * h + 0.5 * a0[i].x * h * h;
+                    bodies[i].y += bodies[i].vy * h + 0.5 * a0[i].y * h * h;
+                    bodies[i].z += bodies[i].vz * h + 0.5 * a0[i].z * h * h;
+                }
+                var a1 = accel();
+                for (var i = 0; i < 3; i++) {
+                    bodies[i].vx += 0.5 * (a0[i].x + a1[i].x) * h;
+                    bodies[i].vy += 0.5 * (a0[i].y + a1[i].y) * h;
+                    bodies[i].vz += 0.5 * (a0[i].z + a1[i].z) * h;
+                }
+            }
+            function hexA(hex, a) {
+                var n = parseInt(hex.slice(1), 16);
+                return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+            }
+
+            var simTime = 0, last = 0, rafOn = false, visible = true;
+            function step(now) {
+                if (!visible) { rafOn = false; return; }
+                if (!last) last = now;
+                var rdt = Math.min((now - last) / 1000, 0.033); last = now;
+                var adv = SPEED * rdt;
+                var n = Math.max(1, Math.round(adv / SUB_H));
+                var h = adv / n;
+                for (var s = 0; s < n; s++) { verlet(h); simTime += h; }
+                draw();
+                requestAnimationFrame(step);
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, W, H);
+                var ax = 1.0 + 0.22 * Math.sin(simTime * 0.15), ay = simTime * 0.35;
+                var cyr = Math.cos(ay), syr = Math.sin(ay), cxr = Math.cos(ax), sxr = Math.sin(ax);
+                var S = W * 0.24, camZ = 3.2;
+                var proj = [];
+                for (var i = 0; i < 3; i++) {
+                    var b = bodies[i];
+                    // 绕 Y 轴旋转
+                    var x1 = b.x * cyr + b.z * syr, z1 = -b.x * syr + b.z * cyr, y1 = b.y;
+                    // 绕 X 轴旋转
+                    var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr, x2 = x1;
+                    var persp = camZ / (camZ - z2);
+                    proj.push({
+                        x: W / 2 + x2 * S * persp,
+                        y: H / 2 + y2 * S * persp,
+                        r: Math.max(2, W * 0.05 * persp),
+                        depth: z2, c: b.c
+                    });
+                }
+                // 拖尾
+                for (var i = 0; i < 3; i++) {
+                    trail[i].push({ x: proj[i].x, y: proj[i].y });
+                    if (trail[i].length > TRAIL) trail[i].shift();
+                }
+                ctx.globalCompositeOperation = 'lighter';
+                for (var i = 0; i < 3; i++) {
+                    var tp = trail[i];
+                    for (var t = 1; t < tp.length; t++) {
+                        var a = (t / tp.length) * 0.5;
+                        ctx.strokeStyle = hexA(bodies[i].c, a * 0.5);
+                        ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tp.length));
+                        ctx.beginPath();
+                        ctx.moveTo(tp[t - 1].x, tp[t - 1].y);
+                        ctx.lineTo(tp[t].x, tp[t].y);
+                        ctx.stroke();
+                    }
+                }
+                // 引力三角网（淡）
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(proj[0].x, proj[0].y);
+                ctx.lineTo(proj[1].x, proj[1].y);
+                ctx.lineTo(proj[2].x, proj[2].y);
+                ctx.closePath();
+                ctx.stroke();
+                // 天体（按深度排序，远的先画）
+                var order = [0, 1, 2].sort(function (a, b) { return proj[a].depth - proj[b].depth; });
+                for (var k = 0; k < 3; k++) {
+                    var p = proj[order[k]];
+                    var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.4);
+                    g.addColorStop(0, hexA(p.c, 0.95));
+                    g.addColorStop(0.35, hexA(p.c, 0.5));
+                    g.addColorStop(1, hexA(p.c, 0));
+                    ctx.fillStyle = g;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r * 2.4, 0, 6.2832);
+                    ctx.fill();
+                    ctx.fillStyle = hexA(p.c, 0.95);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r * 0.55, 0, 6.2832);
+                    ctx.fill();
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // 仅在 Hero 可视时运行，离开视口暂停，省 CPU
+            if ('IntersectionObserver' in window) {
+                new IntersectionObserver(function (es) {
+                    visible = es[0].isIntersecting;
+                    if (visible && !rafOn) { rafOn = true; last = 0; requestAnimationFrame(step); }
+                }, { threshold: 0 }).observe(host);
+            } else {
+                rafOn = true; requestAnimationFrame(step);
+            }
+        })();
     </script>
 </body>
 </html>
