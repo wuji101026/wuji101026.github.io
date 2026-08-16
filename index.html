@@ -117,6 +117,16 @@
             100% { transform: translate3d(2%, -3%, 0) scale(1.08); }
         }
 
+        /* 三体运动：全屏背景板（位于 bg-fx 之上、页面内容之下） */
+        .three-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+
         /* ========== 动态：滚动进度 + 光标光晕 ========== */
         .progress {
             position: fixed;
@@ -312,7 +322,7 @@
             min-height: calc(100vh - var(--nav-h));
             min-height: calc(100svh - var(--nav-h));
             display: grid;
-            grid-template-columns: 1.15fr 0.85fr;
+            grid-template-columns: 1fr;
             align-items: center;
             gap: clamp(28px, 5vw, 72px);
             padding: clamp(40px, 8vh, 96px) 0;
@@ -323,6 +333,7 @@
             line-height: 1.04;
             letter-spacing: -1.5px;
             margin: 22px 0 18px;
+            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
         }
         .hero h1 .grad {
             background: linear-gradient(110deg, var(--accent) 0%, var(--accent-2) 45%, var(--accent-3) 70%, var(--accent) 100%);
@@ -344,10 +355,10 @@
             from { opacity: 0; transform: translateY(18px); }
             to   { opacity: 1; transform: none; }
         }
+        .hero-copy { text-align: center; }   /* Hero 标题与按钮整体居中 */
         .hero-copy > * { animation: heroIn 0.9s cubic-bezier(.16,1,.36,1) both; }
         .hero-copy h1 { animation-delay: 0.15s; }
-        .hero-copy .cta { animation-delay: 0.32s; }
-        .hero-visual { animation: heroIn 1s cubic-bezier(.16,1,.36,1) 0.22s both; }
+        .hero-copy .cta { animation-delay: 0.32s; justify-content: center; }
 
         .btn {
             display: inline-flex;
@@ -379,42 +390,11 @@
         }
         .btn-ghost:hover { transform: translateY(-3px) scale(1.02); border-color: var(--border-strong); background: var(--panel-hover); }
 
-        /* Hero 视觉块 */
-        .hero-visual {
-            position: relative;
-            aspect-ratio: 1 / 1;
-            border-radius: 28px;
-            border: 1px solid var(--border);
-            background:
-                radial-gradient(120% 120% at 20% 10%, rgba(139,109,255,0.20), transparent 55%),
-                radial-gradient(120% 120% at 90% 90%, rgba(90,209,255,0.18), transparent 55%),
-                var(--bg-soft);
-            box-shadow: var(--shadow);
-            overflow: hidden;
-            display: grid;
-            place-items: center;
-        }
-        .mono {
-            font-size: clamp(96px, 22vw, 200px);
-            font-weight: 900;
-            line-height: 1;
-            background: linear-gradient(135deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            color: transparent;
-            filter: drop-shadow(0 18px 40px var(--glow));
-            position: relative;
-            z-index: 1; /* 无J 置于三体画布之下作背景水印，不再遮挡三体运动 */
-            will-change: transform;
-        }
-        /* 三体运动画布：3D 引力模拟（figure-eight 解）+ 透视投影，取代原虚线轨道。
-           置于 .mono 之上（z-index 高于标记），天体始终浮在标记前面，标记不遮挡运动。 */
+        /* 三体运动画布：全屏背景板（3D 引力模拟 + 透视投影，真实牛顿引力混沌积分）。 */
         .orbit3d {
             position: absolute; inset: 0;
             width: 100%; height: 100%;
             display: block;
-            z-index: 2;
         }
 
         /* 向下滚动指示器 */
@@ -619,7 +599,6 @@
         /* ========== 响应式 ========== */
         @media (max-width: 860px) {
             .hero { grid-template-columns: 1fr; text-align: left; min-height: auto; padding-top: 48px; }
-            .hero-visual { order: -1; max-width: min(320px, 78vw); width: 100%; margin: 0 auto; }
         }
         @media (max-width: 560px) {
             :root { --nav-h: 60px; }
@@ -636,7 +615,6 @@
         @media (max-width: 420px) {
             .hero { padding-top: 30px; }
             .hero h1 { font-size: clamp(30px, 9vw, 42px); letter-spacing: -1px; }
-            .hero-visual { max-width: 250px; }
             .card-project { padding: 20px; gap: 12px; }
             .card-project .p-icon { width: 46px; height: 46px; font-size: 23px; }
             .sec-head h2 { font-size: clamp(24px, 7vw, 32px); }
@@ -649,7 +627,7 @@
         }
 
         /* 本站点刻意不响应系统「减弱动效 (prefers-reduced-motion: reduce)」——
-           所有动画（背景流光、文字渐变流光、无J 随三体实时驱动、轨道旋转、Hero 入场、滚动揭示、
+           所有动画（背景流光、文字渐变流光、三体轨道旋转、Hero 入场、滚动揭示、
            磁力按钮、卡片 3D 倾斜、光标光晕、平滑回到顶部）一律按设备是否支持 hover 决定是否运行，
            忽略该无障碍偏好。此为站点所有者主动决定。 */
     </style>
@@ -666,6 +644,9 @@
 </head>
 <body>
     <div class="bg-fx" aria-hidden="true"></div>
+    <div class="three-bg" aria-hidden="true">
+        <canvas class="orbit3d" id="threeBody"></canvas>
+    </div>
     <div class="progress" id="progress"></div>
     <div class="cursor-glow" id="cursorGlow" aria-hidden="true"></div>
 
@@ -701,10 +682,6 @@
                 <a class="btn btn-primary" href="#projects">查看项目 →</a>
                 <a class="btn btn-ghost" href="#contact">联系我</a>
             </div>
-        </div>
-        <div class="hero-visual" aria-hidden="true">
-            <canvas class="orbit3d" id="threeBody"></canvas>
-            <div class="mono">无J</div>
         </div>
         <a class="scroll-hint" href="#projects" aria-label="向下浏览">向下探索 <span>↓</span></a>
     </header>
@@ -1042,43 +1019,72 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll();
 
-        // ========== 三体运动（真实牛顿引力 · 混沌模拟） ==========
+        // ========== 三体运动（真实牛顿引力 · 混沌模拟 · 3D） ==========
         // 随机初始条件 + 牛顿引力实时积分（verlet）。对初值极度敏感，轨迹不可预测，
-        // 每次刷新都是不同的“宇宙”；不周期性重播种（连续演化），仅数值发散时兜底重置。带拖尾与引力三角网。
+        // 每次刷新都是不同的“宇宙”；不周期性重播种（连续演化），仅数值发散时兜底重置。
+        // 3D 呈现：轨道为真正的三维缠绕（位置/速度均三维随机）+ 带倾角环绕相机 + 深度视差星空
+        // + 近大远小透视 + 球体高光。带拖尾与引力三角网。
         (function () {
             var canvas = document.getElementById('threeBody');
             if (!canvas) return;
             var ctx = canvas.getContext('2d');
             var host = canvas.parentElement;
-            var monoEl = host.querySelector('.mono'); // 中心「无J」：由三体实时状态驱动
             var dpr = Math.min(window.devicePixelRatio || 1, 2);
             var W = 0, H = 0;
             function resize() {
-                var r = host.getBoundingClientRect();
-                var s = Math.max(1, Math.min(r.width, r.height));
-                W = s; H = s;
-                canvas.width = Math.round(s * dpr);
-                canvas.height = Math.round(s * dpr);
-                canvas.style.width = s + 'px';
-                canvas.style.height = s + 'px';
+                W = window.innerWidth;
+                H = window.innerHeight;
+                canvas.width = Math.round(W * dpr);
+                canvas.height = Math.round(H * dpr);
+                canvas.style.width = W + 'px';
+                canvas.style.height = H + 'px';
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                stars = makeStars(); // 按当前视口面积重算星点密度（无限视差星场）
             }
             resize();
             window.addEventListener('resize', resize);
 
             var colors = ['#8b6dff', '#5ad1ff', '#ff6fb0']; // accent / accent-2 / accent-3
             var G = 1, SOFT = 0.1, SUB_H = 0.004, SPEED = 0.3, TRAIL = 120;
-            var bodies = [], trail = [[], [], []];
+            var bodies = [], trail = [[], [], []], stars = [];
             // 真正的混沌三体：随机初始条件 + 牛顿引力实时积分
             // （不再使用稳定的 8 字周期解——那只是“看起来像”三体，其实是确定的循环）
+            // 背景星空：充满整个运动空间的固定“星点”，与三体同坐标系、同相机旋转，
+            // 随视角转动产生运动视差 —— 这是 3D 感的重要参照物（近点漂移快、远点漂移慢）。
+            // 背景星空：以屏幕为“虚拟瓦片”无缝平铺的【无限】视差星场。
+            // 星点用归一化坐标 (x,y∈[0,1) 落在略大于视口的瓦片内)，随相机偏航/俯仰漂移并对瓦片尺寸取模回绕
+            // → 永远填满视口、永不到边、永不枯竭（即“无限”）；depth 越大 → 漂移越快、越大越亮（纵深视差）。
+            function makeStars() {
+                var N = Math.max(220, Math.min(520, Math.round(W * H / 9000))); // 按屏幕面积自适应密度
+                var arr = [];
+                for (var i = 0; i < N; i++) {
+                    arr.push({
+                        x: Math.random(),                 // 瓦片内归一化横向位置 [0,1)
+                        y: Math.random(),                 // 瓦片内归一化纵向位置 [0,1)
+                        depth: Math.random(),             // 0(远)→1(近)：决定视差速度/大小/亮度
+                        tw0: Math.random() * 6.2832,      // 闪烁相位
+                        tws: 0.3 + Math.random() * 0.8,   // 闪烁速度
+                        sz: 0.5 + Math.random() * 1.4     // 星点基础大小
+                    });
+                }
+                return arr;
+            }
             function seed() {
                 bodies = [];
                 for (var i = 0; i < 3; i++) {
-                    var ang = Math.random() * Math.PI * 2, rad = 0.3 + Math.random() * 0.8;
-                    var sp = 0.25 + Math.random() * 0.45, va = Math.random() * Math.PI * 2;
+                    // 三维球分布：位置与速度均取三维随机方向 → 轨道真正脱离单一平面，
+                    // 三体在空间里互相缠绕，环绕视角下可清楚看到深度层次
+                    var rad = 0.35 + Math.random() * 0.75;
+                    var th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1);
+                    var sp = 0.25 + Math.random() * 0.45;
+                    var vth = Math.random() * Math.PI * 2, vph = Math.acos(2 * Math.random() - 1);
                     bodies.push({
-                        x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, z: (Math.random() - 0.5) * 0.5,
-                        vx: Math.cos(va) * sp, vy: Math.sin(va) * sp, vz: (Math.random() - 0.5) * 0.35,
+                        x: Math.cos(th) * Math.sin(ph) * rad,
+                        y: Math.sin(th) * Math.sin(ph) * rad,
+                        z: Math.cos(ph) * rad,
+                        vx: Math.cos(vth) * Math.sin(vph) * sp,
+                        vy: Math.sin(vth) * Math.sin(vph) * sp,
+                        vz: Math.cos(vph) * sp,
                         m: 0.8 + Math.random() * 0.5, c: colors[i]
                     });
                 }
@@ -1087,6 +1093,7 @@
                 for (var i = 0; i < 3; i++) { px += bodies[i].m * bodies[i].vx; py += bodies[i].m * bodies[i].vy; pz += bodies[i].m * bodies[i].vz; M += bodies[i].m; }
                 for (var i = 0; i < 3; i++) { bodies[i].vx -= px / M; bodies[i].vy -= py / M; bodies[i].vz -= pz / M; }
                 trail = [[], [], []];
+                stars = makeStars();
             }
             seed();
 
@@ -1126,7 +1133,6 @@
             }
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
-            var mSc = 1; // 中心「无J」平滑状态：呼吸缩放（不旋转/不漂移，避免眩晕）
             var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
             function step(now) {
                 if (!visible) { rafOn = false; return; }
@@ -1159,7 +1165,8 @@
                 if (audioReady && musicOn && now - pluckT > 6000) { pluckT = now; pluck(curFreq[Math.floor(Math.random() * 3)]); }
             }
 
-            var fitScale = W * 0.24; // 自适应缩放（平滑跟随，避免天体被甩出画面）
+            var fitScale = Math.min(W, H) * 0.24; // 自适应缩放（平滑跟随，避免天体被甩出画面）
+            var Rsmooth = 1;          // 平滑后的包围半径（消除相机距离/缩放随单帧 R 跳变 → 画面抖动）
             function draw() {
                 ctx.clearRect(0, 0, W, H);
                 // 质心回正：消去整体漂移，让三体始终居中
@@ -1172,13 +1179,16 @@
                     var d = Math.hypot(bodies[i].x - cx, bodies[i].y - cy, bodies[i].z - cz);
                     if (d > R) R = d;
                 }
-                var Rfit = Math.min(R, 7); // 限制缩放下限：被甩飞的天体可飘出画面，但避免整体缩成一点
+                Rsmooth += (R - Rsmooth) * 0.06; // 平滑包围半径，避免 camZ/缩放随单帧 R 跳变 → 画面抖动
+                var Rfit = Math.min(Rsmooth, 7); // 限制缩放下限：被甩飞的天体可飘出画面，但避免整体缩成一点
                 var targetS = (Math.min(W, H) * 0.42) / Math.max(Rfit * 1.2, 0.6);
                 fitScale += (targetS - fitScale) * 0.06;
 
-                var ax = 1.0 + 0.22 * Math.sin(simTime * 0.15), ay = simTime * 0.35;
+                // 相机：固定俯仰倾角（把 z 轴差异直接映射成画面上的上下错位 → 立体感），
+                // 缓慢环绕。俯仰/相机距离均已平滑，画面稳定无抖动。
+                var ax = 0.62, ay = simTime * 0.28;
                 var cyr = Math.cos(ay), syr = Math.sin(ay), cxr = Math.cos(ax), sxr = Math.sin(ax);
-                var camZ = 3.2, S = fitScale;
+                var camZ = Math.max(2.4, Rsmooth * 1.5), S = fitScale;
                 var proj = [];
                 for (var i = 0; i < 3; i++) {
                     var b = bodies[i];
@@ -1204,16 +1214,37 @@
                     var x1 = p.x * cyr + p.z * syr, z1 = -p.x * syr + p.z * cyr, y1 = p.y;
                     var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr, x2 = x1;
                     var pp = camZ / (camZ - z2);
-                    return { x: W / 2 + x2 * S * pp, y: H / 2 + y2 * S * pp };
+                    return { x: W / 2 + x2 * S * pp, y: H / 2 + y2 * S * pp, pp: pp };
                 }
                 ctx.globalCompositeOperation = 'lighter';
+                // 背景星空（无限视差）：以略大于视口的“瓦片”无缝平铺，星点随相机偏航(ay)/俯仰(ax)漂移
+                // 并对瓦片尺寸取模回绕 → 永远填满视口、永不到边、永不枯竭（真正的无限星场）；
+                // depth 越大漂移越快、越大越亮，制造纵深视差感。
+                var bobY = Math.sin(simTime * 0.13) * 0.6;        // 缓慢竖向浮动，纵深呼吸感
+                var tileW = W * 1.25, tileH = H * 1.25;           // 瓦片略大于视口，避免边缘露白
+                var mW = (tileW - W) / 2, mH = (tileH - H) / 2;
+                for (var s = 0; s < stars.length; s++) {
+                    var st = stars[s];
+                    var par = 0.25 + 0.85 * st.depth;             // 视差系数（近快远慢）
+                    // 漂移后取模回绕（ay/ax 持续增大也无妨，取模保证落在瓦片内 → 永不到边）
+                    var dx = (((st.x * tileW + ay * 60 * par) % tileW) + tileW) % tileW;
+                    var dy = (((st.y * tileH + (bobY + ax) * 60 * par) % tileH) + tileH) % tileH;
+                    var sx = dx - mW, sy = dy - mH;
+                    var twk = 0.35 + 0.35 * Math.sin(simTime * st.tws + st.tw0); // 缓慢闪烁
+                    ctx.fillStyle = 'rgba(255,255,255,' + (twk * (0.25 + 0.6 * st.depth)).toFixed(3) + ')';
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, st.sz * (0.6 + 0.7 * st.depth), 0, 6.2832);
+                    ctx.fill();
+                }
                 for (var i = 0; i < 3; i++) {
                     var tp = trail[i];
                     for (var t = 1; t < tp.length; t++) {
                         var a = (t / tp.length) * 0.5;
                         var p0 = projPt(tp[t - 1]), p1 = projPt(tp[t]);
-                        ctx.strokeStyle = hexA(bodies[i].c, a * 0.5);
-                        ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tp.length));
+                        // 拖尾按深度调制：近处粗亮、远处细暗，强化纵深
+                        var dep = Math.max(0.45, Math.min(1.6, 0.45 * (p0.pp + p1.pp)));
+                        ctx.strokeStyle = hexA(bodies[i].c, a * 0.5 * dep);
+                        ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tp.length) * dep);
                         ctx.beginPath();
                         ctx.moveTo(p0.x, p0.y);
                         ctx.lineTo(p1.x, p1.y);
@@ -1229,10 +1260,12 @@
                 ctx.lineTo(proj[2].x, proj[2].y);
                 ctx.closePath();
                 ctx.stroke();
-                // 天体（按深度排序，远的先画）
-                var order = [0, 1, 2].sort(function (a, b) { return proj[a].depth - proj[b].depth; });
-                for (var k = 0; k < 3; k++) {
-                    var p = proj[order[k]];
+                // 天体按深度分远/近两组（以过质心 z=0 平面为界）：远的先画，近的后画。
+                var farIdx = [], nearIdx = [];
+                for (var i = 0; i < 3; i++) { (proj[i].depth < 0 ? farIdx : nearIdx).push(i); }
+                farIdx.sort(function (a, b) { return proj[a].depth - proj[b].depth; });
+                nearIdx.sort(function (a, b) { return proj[a].depth - proj[b].depth; });
+                function drawBody(p) {
                     var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2.4);
                     g.addColorStop(0, hexA(p.c, 0.95));
                     g.addColorStop(0.35, hexA(p.c, 0.5));
@@ -1245,30 +1278,14 @@
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, p.r * 0.55, 0, 6.2832);
                     ctx.fill();
+                    // 高光：模拟左上受光 → 球体感（不是扁平圆点）
+                    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+                    ctx.beginPath();
+                    ctx.arc(p.x - p.r * 0.22, p.y - p.r * 0.22, p.r * 0.16, 0, 6.2832);
+                    ctx.fill();
                 }
-                ctx.globalCompositeOperation = 'source-over';
-
-                // 中心「无J」标记：仅做与三体能量/接近度相关的「呼吸」缩放与辉光，
-                // 去掉旋转与漂移——避免晕眩。仍由真实物理实时驱动，非固定循环。
-                if (monoEl) {
-                    var ke = 0, minD = 1e9;
-                    for (var i = 0; i < 3; i++) {
-                        var b = bodies[i];
-                        ke += 0.5 * b.m * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
-                        for (var j = i + 1; j < 3; j++) {
-                            var dx = bodies[j].x - bodies[i].x, dy = bodies[j].y - bodies[i].y, dz = bodies[j].z - bodies[i].z;
-                            var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                            if (d < minD) minD = d;
-                        }
-                    }
-                    var energy = Math.max(0, Math.min(1, ke / 1.2));
-                    var close = Math.max(0, Math.min(1, (0.9 - minD) / 0.9));
-                    var targetSc = 1 + energy * 0.03 + close * 0.05;
-                    mSc += (targetSc - mSc) * 0.05;
-                    monoEl.style.transform = 'scale(' + mSc.toFixed(3) + ')';
-                    monoEl.style.filter =
-                        'drop-shadow(0 18px 40px var(--glow)) brightness(' + (1 + close * 0.15).toFixed(2) + ')';
-                }
+                for (var f = 0; f < farIdx.length; f++) drawBody(proj[farIdx[f]]);
+                for (var n = 0; n < nearIdx.length; n++) drawBody(proj[nearIdx[n]]);
             }
 
             /* ===================== 音频：Hero 三体 → 太空纯音乐 ===================== */
@@ -1346,7 +1363,7 @@
                 var g = actx.createGain();
                 g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.22, t + 0.02);
                 g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
-                var g2 = ac.createGain(); g2.gain.value = 0.1;
+                var g2 = actx.createGain(); g2.gain.value = 0.1;
                 o.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
                 o.start(t); o2.start(t); o.stop(t + 3.1); o2.stop(t + 3.1);
             }
