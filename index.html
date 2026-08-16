@@ -224,6 +224,30 @@
         }
         .theme-toggle:hover { color: var(--text); border-color: var(--border-strong); transform: translateY(-1px); }
 
+        /* 右上角「开启」按钮：开关首页三体太空音乐 */
+        .nav-open {
+            display: inline-flex; align-items: center; gap: 6px;
+            height: 40px; padding: 0 16px;
+            appearance: none; -webkit-appearance: none;
+            font-family: inherit; line-height: 1;
+            border: none; border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #05101e; font-weight: 700; font-size: 14px;
+            cursor: pointer; white-space: nowrap;
+            box-shadow: 0 6px 20px rgba(91, 209, 255, .18);
+            transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s ease, filter .25s ease;
+        }
+        .nav-open:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 10px 28px rgba(91, 209, 255, .28); }
+        .nav-open:active { transform: scale(.96); }
+        .nav-open.on { animation: navPulse 2.4s ease-in-out infinite; }
+        @keyframes navPulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(91, 209, 255, .35), 0 8px 22px rgba(91, 209, 255, .25); }
+            50% { box-shadow: 0 0 0 3px rgba(91, 209, 255, .6), 0 12px 30px rgba(91, 209, 255, .45); }
+        }
+        @media (max-width: 560px) {
+            .nav-open { padding: 0 12px; font-size: 13px; }
+        }
+
         /* 移动端汉堡按钮（仅小屏显示） */
         .nav-toggle {
             display: none;
@@ -380,20 +404,17 @@
             -webkit-text-fill-color: transparent;
             color: transparent;
             filter: drop-shadow(0 18px 40px var(--glow));
-            animation: floatMono 6s ease-in-out infinite;
             position: relative;
-            z-index: 2; /* 无J 位于三体之上，作中心焦点 */
+            z-index: 1; /* 无J 置于三体画布之下作背景水印，不再遮挡三体运动 */
+            will-change: transform;
         }
-        @keyframes floatMono {
-            0%, 100% { transform: translateY(0) rotate(-2deg); }
-            50% { transform: translateY(-14px) rotate(2deg); }
-        }
-        /* 三体运动画布：3D 引力模拟（figure-eight 解）+ 透视投影，取代原虚线轨道 */
+        /* 三体运动画布：3D 引力模拟（figure-eight 解）+ 透视投影，取代原虚线轨道。
+           置于 .mono 之上（z-index 高于标记），天体始终浮在标记前面，标记不遮挡运动。 */
         .orbit3d {
             position: absolute; inset: 0;
             width: 100%; height: 100%;
             display: block;
-            z-index: 1;
+            z-index: 2;
         }
 
         /* 向下滚动指示器 */
@@ -628,7 +649,7 @@
         }
 
         /* 本站点刻意不响应系统「减弱动效 (prefers-reduced-motion: reduce)」——
-           所有动画（背景流光、文字渐变流光、无J 浮动、轨道旋转、Hero 入场、滚动揭示、
+           所有动画（背景流光、文字渐变流光、无J 随三体实时驱动、轨道旋转、Hero 入场、滚动揭示、
            磁力按钮、卡片 3D 倾斜、光标光晕、平滑回到顶部）一律按设备是否支持 hover 决定是否运行，
            忽略该无障碍偏好。此为站点所有者主动决定。 */
     </style>
@@ -660,6 +681,7 @@
             <a href="#contact">联系</a>
         </div>
         <div class="nav-right">
+            <button class="nav-open" id="openBtn" type="button" title="开启 / 关闭首页三体太空音乐">开启 🎵</button>
             <button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换深浅色">🌙</button>
             <button class="nav-toggle" id="navToggle" aria-label="打开菜单" aria-expanded="false" aria-controls="mobileMenu">☰</button>
         </div>
@@ -1022,12 +1044,13 @@
 
         // ========== 三体运动（真实牛顿引力 · 混沌模拟） ==========
         // 随机初始条件 + 牛顿引力实时积分（verlet）。对初值极度敏感，轨迹不可预测，
-        // 每次刷新都是不同的“宇宙”；天体被甩飞后自动重新播种。带拖尾与引力三角网。
+        // 每次刷新都是不同的“宇宙”；不周期性重播种（连续演化），仅数值发散时兜底重置。带拖尾与引力三角网。
         (function () {
             var canvas = document.getElementById('threeBody');
             if (!canvas) return;
             var ctx = canvas.getContext('2d');
             var host = canvas.parentElement;
+            var monoEl = host.querySelector('.mono'); // 中心「无J」：由三体实时状态驱动
             var dpr = Math.min(window.devicePixelRatio || 1, 2);
             var W = 0, H = 0;
             function resize() {
@@ -1044,7 +1067,7 @@
             window.addEventListener('resize', resize);
 
             var colors = ['#8b6dff', '#5ad1ff', '#ff6fb0']; // accent / accent-2 / accent-3
-            var G = 1, SOFT = 0.05, SUB_H = 0.004, SPEED = 0.55, TRAIL = 24;
+            var G = 1, SOFT = 0.1, SUB_H = 0.004, SPEED = 0.3, TRAIL = 120;
             var bodies = [], trail = [[], [], []];
             // 真正的混沌三体：随机初始条件 + 牛顿引力实时积分
             // （不再使用稳定的 8 字周期解——那只是“看起来像”三体，其实是确定的循环）
@@ -1103,6 +1126,7 @@
             }
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
+            var mSc = 1; // 中心「无J」平滑状态：呼吸缩放（不旋转/不漂移，避免眩晕）
             var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
             function step(now) {
                 if (!visible) { rafOn = false; return; }
@@ -1112,10 +1136,27 @@
                 if (elapsed < FRAME_MS) return; // 未到目标帧：仅排队，跳过本轮计算与绘制
                 var rdt = Math.min(elapsed / 1000, 0.05); last = now;
                 var adv = SPEED * rdt;
-                var n = Math.max(1, Math.round(adv / SUB_H));
-                var h = adv / n;
+                // 自适应子步：近距离遭遇时引力极强，固定步长会注入能量→数值发散(花屏)。
+                // 按当前最大加速度估算安全步长，暴力接近时自动细分，避免 NaN/Infinity。
+                var a0 = accel();
+                var maxA = 0;
+                for (var i = 0; i < 3; i++) {
+                    var am = Math.sqrt(a0[i].x * a0[i].x + a0[i].y * a0[i].y + a0[i].z * a0[i].z);
+                    if (am > maxA) maxA = am;
+                }
+                var h = Math.min(SUB_H, 0.06 / Math.sqrt(maxA + 1e-6));
+                var n = Math.max(1, Math.ceil(adv / h));
+                if (n > 1500) { n = 1500; h = adv / n; } // 极端情况限幅，避免卡死
                 for (var s = 0; s < n; s++) { verlet(h); simTime += h; }
+                // 数值兜底：若仍发散成非有限值（极罕见），重置宇宙以免永久花屏（非周期性重启）
+                for (var i = 0; i < 3; i++) {
+                    var bd = bodies[i];
+                    if (!isFinite(bd.x) || !isFinite(bd.y) || !isFinite(bd.z) ||
+                        !isFinite(bd.vx) || !isFinite(bd.vy) || !isFinite(bd.vz)) { seed(); break; }
+                }
                 draw();
+                updateAudio();
+                if (audioReady && musicOn && now - pluckT > 6000) { pluckT = now; pluck(curFreq[Math.floor(Math.random() * 3)]); }
             }
 
             var fitScale = W * 0.24; // 自适应缩放（平滑跟随，避免天体被甩出画面）
@@ -1125,15 +1166,15 @@
                 var cx = 0, cy = 0, cz = 0;
                 for (var i = 0; i < 3; i++) { cx += bodies[i].x; cy += bodies[i].y; cz += bodies[i].z; }
                 cx /= 3; cy /= 3; cz /= 3;
-                // 自适应缩放 + 甩飞检测
+                // 自适应缩放（甩飞时缩小跟随，不重播种，连续演化）
                 var R = 0;
                 for (var i = 0; i < 3; i++) {
                     var d = Math.hypot(bodies[i].x - cx, bodies[i].y - cy, bodies[i].z - cz);
                     if (d > R) R = d;
                 }
-                var targetS = (Math.min(W, H) * 0.42) / Math.max(R * 1.2, 0.6);
+                var Rfit = Math.min(R, 7); // 限制缩放下限：被甩飞的天体可飘出画面，但避免整体缩成一点
+                var targetS = (Math.min(W, H) * 0.42) / Math.max(Rfit * 1.2, 0.6);
                 fitScale += (targetS - fitScale) * 0.06;
-                if (R > 5.5) seed(); // 有天体被甩飞 → 重新播种（新的混沌宇宙）
 
                 var ax = 1.0 + 0.22 * Math.sin(simTime * 0.15), ay = simTime * 0.35;
                 var cyr = Math.cos(ay), syr = Math.sin(ay), cxr = Math.cos(ax), sxr = Math.sin(ax);
@@ -1151,24 +1192,31 @@
                         x: W / 2 + x2 * S * persp,
                         y: H / 2 + y2 * S * persp,
                         r: Math.max(2, S * 0.05 * persp),
-                        depth: z2, c: b.c
+                        depth: z2, c: b.c, rx: rx, ry: ry, rz: rz
                     });
                 }
-                // 拖尾
+                // 拖尾（存世界坐标，每帧随场景重投影 → 长拖尾不糊、呈真实轨道弧线）
                 for (var i = 0; i < 3; i++) {
-                    trail[i].push({ x: proj[i].x, y: proj[i].y });
+                    trail[i].push({ x: proj[i].rx, y: proj[i].ry, z: proj[i].rz });
                     if (trail[i].length > TRAIL) trail[i].shift();
+                }
+                function projPt(p) {
+                    var x1 = p.x * cyr + p.z * syr, z1 = -p.x * syr + p.z * cyr, y1 = p.y;
+                    var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr, x2 = x1;
+                    var pp = camZ / (camZ - z2);
+                    return { x: W / 2 + x2 * S * pp, y: H / 2 + y2 * S * pp };
                 }
                 ctx.globalCompositeOperation = 'lighter';
                 for (var i = 0; i < 3; i++) {
                     var tp = trail[i];
                     for (var t = 1; t < tp.length; t++) {
                         var a = (t / tp.length) * 0.5;
+                        var p0 = projPt(tp[t - 1]), p1 = projPt(tp[t]);
                         ctx.strokeStyle = hexA(bodies[i].c, a * 0.5);
                         ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tp.length));
                         ctx.beginPath();
-                        ctx.moveTo(tp[t - 1].x, tp[t - 1].y);
-                        ctx.lineTo(tp[t].x, tp[t].y);
+                        ctx.moveTo(p0.x, p0.y);
+                        ctx.lineTo(p1.x, p1.y);
                         ctx.stroke();
                     }
                 }
@@ -1199,7 +1247,164 @@
                     ctx.fill();
                 }
                 ctx.globalCompositeOperation = 'source-over';
+
+                // 中心「无J」标记：仅做与三体能量/接近度相关的「呼吸」缩放与辉光，
+                // 去掉旋转与漂移——避免晕眩。仍由真实物理实时驱动，非固定循环。
+                if (monoEl) {
+                    var ke = 0, minD = 1e9;
+                    for (var i = 0; i < 3; i++) {
+                        var b = bodies[i];
+                        ke += 0.5 * b.m * (b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
+                        for (var j = i + 1; j < 3; j++) {
+                            var dx = bodies[j].x - bodies[i].x, dy = bodies[j].y - bodies[i].y, dz = bodies[j].z - bodies[i].z;
+                            var d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                            if (d < minD) minD = d;
+                        }
+                    }
+                    var energy = Math.max(0, Math.min(1, ke / 1.2));
+                    var close = Math.max(0, Math.min(1, (0.9 - minD) / 0.9));
+                    var targetSc = 1 + energy * 0.03 + close * 0.05;
+                    mSc += (targetSc - mSc) * 0.05;
+                    monoEl.style.transform = 'scale(' + mSc.toFixed(3) + ')';
+                    monoEl.style.filter =
+                        'drop-shadow(0 18px 40px var(--glow)) brightness(' + (1 + close * 0.15).toFixed(2) + ')';
+                }
             }
+
+            /* ===================== 音频：Hero 三体 → 太空纯音乐 ===================== */
+            // 复用同一套混沌三体状态：距离→和弦、水平位置→声像、速度→亮度、
+            // 近距离遭遇→铃声、能量→整体响度。点右上角「开启」即出声。
+            var SCALES = {
+                Lydian: [0, 2, 4, 6, 7, 9, 11], MajorPenta: [0, 2, 4, 7, 9],
+                MinorPenta: [0, 3, 5, 7, 10], WholeTone: [0, 2, 4, 6, 8, 10],
+                Aeolian: [0, 2, 3, 5, 7, 8, 10]
+            };
+            var NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            function noteName(f) { var n = Math.round(12 * Math.log2(f / 440)) + 69; return NOTE[((n % 12) + 12) % 12] + (Math.floor(n / 12) - 1); }
+            var actx = null, master = null, reverb = null, wet = null, dry = null,
+                voices = [], audioReady = false, musicOn = false, lastBell = 0, pluckT = 0;
+            var ROOT = 110, scaleName = 'Lydian', vol = 0.55, curFreq = [ROOT * 2, ROOT * 4, ROOT * 8];
+
+            function makeReverb(ac, sec, decay) {
+                var rate = ac.sampleRate, len = Math.floor(rate * sec);
+                var buf = ac.createBuffer(2, len, rate);
+                for (var ch = 0; ch < 2; ch++) {
+                    var d = buf.getChannelData(ch);
+                    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+                }
+                var c = ac.createConvolver(); c.buffer = buf; return c;
+            }
+            function makeVoice(ac, dest) {
+                var o1 = ac.createOscillator(); o1.type = 'sine';
+                var o2 = ac.createOscillator(); o2.type = 'triangle'; o2.detune.value = 4;
+                var filt = ac.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 420; filt.Q.value = 0.4;
+                var g = ac.createGain(); g.gain.value = 0;
+                var pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+                o1.connect(filt); o2.connect(filt); filt.connect(g);
+                if (pan) { g.connect(pan); pan.connect(dest); } else { g.connect(dest); }
+                o1.start(); o2.start();
+                return { o1: o1, o2: o2, filt: filt, g: g, pan: pan };
+            }
+            function makeNoisePad(ac, dest) {
+                var len = ac.sampleRate * 3, buf = ac.createBuffer(1, len, ac.sampleRate);
+                var d = buf.getChannelData(0);
+                for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+                var src = ac.createBufferSource(); src.buffer = buf; src.loop = true;
+                var bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 440; bp.Q.value = 0.6;
+                var g = ac.createGain(); g.gain.value = 0.025;
+                var lfo = ac.createOscillator(); lfo.frequency.value = 0.05;
+                var lg = ac.createGain(); lg.gain.value = 70;
+                lfo.connect(lg); lg.connect(bp.frequency);
+                src.connect(bp); bp.connect(g); g.connect(dest);
+                src.start(); lfo.start();
+            }
+            function initAudio() {
+                if (audioReady) return;
+                actx = new (window.AudioContext || window.webkitAudioContext)();
+                master = actx.createGain(); master.gain.value = 0; // 起始静音，开启后淡入
+                reverb = makeReverb(actx, 6, 3.0);
+                wet = actx.createGain(); wet.gain.value = 0.62;
+                dry = actx.createGain(); dry.gain.value = 0.6;
+                master.connect(dry); dry.connect(actx.destination);
+                master.connect(reverb); reverb.connect(wet); wet.connect(actx.destination);
+                for (var i = 0; i < 3; i++) voices.push(makeVoice(actx, master));
+                makeNoisePad(actx, master);
+                var rd = actx.createOscillator(); rd.type = 'sine'; rd.frequency.value = ROOT;
+                var rg = actx.createGain(); rg.gain.value = 0.06; rd.connect(rg); rg.connect(master); rd.start();
+                audioReady = true;
+            }
+            function scaleFreq(name, deg) {
+                var s = SCALES[name], n = s.length;
+                var oct = Math.floor(deg / n), idx = ((deg % n) + n) % n;
+                return ROOT * Math.pow(2, (s[idx] + 12 * oct) / 12);
+            }
+            function bell(f) {
+                if (!audioReady || !musicOn) return;
+                var t = actx.currentTime;
+                var o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+                var o2 = actx.createOscillator(); o2.type = 'sine'; o2.frequency.value = f * 2.01;
+                var g = actx.createGain();
+                g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.22, t + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 3.0);
+                var g2 = ac.createGain(); g2.gain.value = 0.1;
+                o.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
+                o.start(t); o2.start(t); o.stop(t + 3.1); o2.stop(t + 3.1);
+            }
+            function pluck(f) {
+                if (!audioReady || !musicOn) return;
+                var t = actx.currentTime;
+                var o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+                var g = actx.createGain();
+                g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.10, t + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+                o.connect(g); g.connect(master); o.start(t); o.stop(t + 1.9);
+            }
+            function updateAudio() {
+                if (!audioReady) return;
+                var now = actx.currentTime;
+                var cx = 0, cy = 0, cz = 0;
+                for (var i = 0; i < 3; i++) { cx += bodies[i].x; cy += bodies[i].y; cz += bodies[i].z; }
+                cx /= 3; cy /= 3; cz /= 3;
+                var sLen = SCALES[scaleName].length, reg = [1, 2, 3], ke = 0;
+                for (var i = 0; i < 3; i++) {
+                    var b = bodies[i];
+                    var rx = b.x - cx, ry = b.y - cy, rz = b.z - cz;
+                    var r = Math.sqrt(rx * rx + ry * ry + rz * rz);
+                    var t = Math.max(0, Math.min(1, (r - 0.2) / 2.3));
+                    var deg = reg[i] * sLen + Math.round(t * (sLen - 1));
+                    var f = scaleFreq(scaleName, deg); curFreq[i] = f;
+                    var v = voices[i];
+                    v.o1.frequency.setTargetAtTime(f, now, 0.18);
+                    v.o2.frequency.setTargetAtTime(f, now, 0.18);
+                    if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, rx * 1.2)), now, 0.15);
+                    var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy + b.vz * b.vz);
+                    ke += 0.5 * b.m * sp * sp;
+                    v.filt.frequency.setTargetAtTime(320 + Math.min(sp, 1.6) * 900, now, 0.25);
+                    v.g.gain.setTargetAtTime(musicOn ? 0.085 : 0, now, 0.4);
+                }
+                var intensity = Math.max(0, Math.min(1.6, ke / 1.2));
+                master.gain.setTargetAtTime(musicOn ? vol * (0.7 + 0.3 * Math.min(intensity, 1)) : 0, now, 0.5);
+                var minD = 1e9;
+                for (var i = 0; i < 3; i++) for (var j = i + 1; j < 3; j++) {
+                    var dx = bodies[j].x - bodies[i].x, dy = bodies[j].y - bodies[i].y, dz = bodies[j].z - bodies[i].z;
+                    var d = Math.sqrt(dx * dx + dy * dy + dz * dz); if (d < minD) minD = d;
+                }
+                if (musicOn && minD < 0.35 && now - lastBell > 1.2) {
+                    lastBell = now; bell(scaleFreq(scaleName, 3 * sLen + Math.floor(Math.random() * sLen)));
+                }
+                return { intensity: intensity, minD: minD };
+            }
+            (function wireOpen() {
+                var ob = document.getElementById('openBtn');
+                if (!ob) return;
+                ob.addEventListener('click', function () {
+                    initAudio();
+                    if (actx.state === 'suspended') actx.resume();
+                    musicOn = !musicOn;
+                    ob.classList.toggle('on', musicOn);
+                    ob.textContent = musicOn ? '♪ 关闭' : '开启 🎵';
+                });
+            })();
 
             // 仅在 Hero 可视时运行，离开视口暂停，省 CPU
             if ('IntersectionObserver' in window) {
