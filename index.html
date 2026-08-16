@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>无极 · 博客</title>
-    <meta name="description" content="无极的个人博客：前端开发、交互设计、动效与离线小工具的作品与记录。" />
+    <meta name="description" content="无极的个人博客" />
     <meta name="theme-color" content="#08070d" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f4f1fb" media="(prefers-color-scheme: light)" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="无极 · 博客" />
-    <meta property="og:description" content="前端开发、交互设计、动效与离线小工具的作品与记录。" />
+    <meta property="og:description" content="无极的个人博客" />
     <meta property="og:url" content="https://wuji101026.github.io/" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="无极 · 博客" />
-    <meta name="twitter:description" content="前端开发、交互设计、动效与离线小工具的作品与记录。" />
+    <meta name="twitter:description" content="无极的个人博客" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%F0%9F%8C%8C%3C/text%3E%3C/svg%3E" />
     <style>
         /* ========== 主题变量 ========== */
@@ -729,7 +729,7 @@
                     <span class="mark">无J</span>
                     <span>无极</span>
                 </a>
-                <p>记录 · 创造 · 分享</p>
+                <p>路在脚下</p>
             </div>
             <nav class="f-links" aria-label="页脚导航">
                 <a href="#top">首页</a>
@@ -799,7 +799,7 @@
 
         // 末屏兜底：滚到页面底部时高亮「联系」（最后一个区块太矮，进不了判定带）
         function syncContactActive() {
-            if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+            if (window.scrollY >= _docH - 4) {
                 links.forEach(function (l) {
                     var on = l.getAttribute('href') === '#contact';
                     l.classList.toggle('active', on);
@@ -832,11 +832,15 @@
             }
         });
 
-        // 滚动进度条
+        // 滚动进度条（页面高度缓存：静态页只在 resize/load 后重测，滚动帧内不再触发强制布局）
         var progressEl = document.getElementById('progress');
+        var _docH = 0;
+        function measureDoc() { _docH = document.documentElement.scrollHeight - window.innerHeight; }
+        window.addEventListener('resize', measureDoc);
+        window.addEventListener('load', measureDoc);
+        measureDoc();
         function updateProgress() {
-            var h = document.documentElement.scrollHeight - window.innerHeight;
-            progressEl.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+            progressEl.style.width = (_docH > 0 ? (window.scrollY / _docH) * 100 : 0) + '%';
         }
 
         // 光标光晕 + 卡片 3D 倾斜 + 按钮磁力：强制开启，忽略系统「减弱动效」偏好
@@ -909,6 +913,12 @@
                 if (!running) wake();
             }, { passive: true });
 
+            // 布局矩形缓存：滚动/缩放时才失效。原来指针每动一帧就对每个按钮
+            // getBoundingClientRect（强制布局读取），现在稳态指针移动 0 次布局读取
+            function clearMagRects() { for (var i = 0; i < magEls.length; i++) magEls[i]._rect = null; }
+            window.addEventListener('scroll', clearMagRects, { passive: true });
+            window.addEventListener('resize', clearMagRects);
+
             // 空闲休眠：指针静止且所有元素已归位时停止 rAF，降低空闲 CPU
             var running = false, rafId = 0;
             function wake() {
@@ -935,7 +945,7 @@
                         else { el._liftP = el._liftFrom + (el._liftTo - el._liftFrom) * easeOut(lt); }
                     }
                     if (!el._inside) {
-                        var r = el.getBoundingClientRect();
+                        var r = el._rect || (el._rect = el.getBoundingClientRect());
                         var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
                         var dx = pmx - cx, dy = pmy - cy;
                         var dist = Math.hypot(dx, dy);
@@ -1042,7 +1052,13 @@
                 stars = makeStars(); // 按当前视口面积重算星点密度（无限视差星场）
             }
             resize();
-            window.addEventListener('resize', resize);
+            // 移动端地址栏收起/展开也会触发 resize（高度小幅抖动），逐次重建画布+星场
+            // 代价高且星空会闪跳；去抖 120ms，只响应「真正的」尺寸变化
+            var rsTimer = 0;
+            window.addEventListener('resize', function () {
+                clearTimeout(rsTimer);
+                rsTimer = setTimeout(resize, 120);
+            });
 
             var colors = ['#8b6dff', '#5ad1ff', '#ff6fb0']; // accent / accent-2 / accent-3
             var G = 1, SOFT = 0.1, SUB_H = 0.004, SPEED = 0.3, TRAIL = 120;
@@ -1127,9 +1143,25 @@
                     bodies[i].vz += 0.5 * (a0[i].z + a1[i].z) * h;
                 }
             }
+            // 颜色字符串缓存：alpha 量化到 1/32 后按 key 缓存。拖尾/星点每帧原本要
+            // 新建几百个临时 rgba 字符串（GC 压力大），量化后视觉差异不可感知
+            var _colCache = {};
             function hexA(hex, a) {
-                var n = parseInt(hex.slice(1), 16);
-                return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+                var q = Math.max(0, Math.round(a * 32) / 32);
+                var key = hex + q, s = _colCache[key];
+                if (s === undefined) {
+                    var n = parseInt(hex.slice(1), 16);
+                    s = 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + q + ')';
+                    _colCache[key] = s;
+                }
+                return s;
+            }
+            var _whiteCache = [];
+            function whiteA(a) {
+                var q = Math.max(0, Math.min(1, Math.round(a * 24) / 24));
+                var s = _whiteCache[q];
+                if (s === undefined) { s = _whiteCache[q] = 'rgba(255,255,255,' + q + ')'; }
+                return s;
             }
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
@@ -1167,6 +1199,7 @@
 
             var fitScale = Math.min(W, H) * 0.24; // 自适应缩放（平滑跟随，避免天体被甩出画面）
             var Rsmooth = 1;          // 平滑后的包围半径（消除相机距离/缩放随单帧 R 跳变 → 画面抖动）
+            var _tx = [], _ty = [], _tp = []; // 拖尾重投影复用缓冲（免每帧数百个临时对象）
             function draw() {
                 ctx.clearRect(0, 0, W, H);
                 // 质心回正：消去整体漂移，让三体始终居中
@@ -1210,12 +1243,6 @@
                     trail[i].push({ x: proj[i].rx, y: proj[i].ry, z: proj[i].rz });
                     if (trail[i].length > TRAIL) trail[i].shift();
                 }
-                function projPt(p) {
-                    var x1 = p.x * cyr + p.z * syr, z1 = -p.x * syr + p.z * cyr, y1 = p.y;
-                    var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr, x2 = x1;
-                    var pp = camZ / (camZ - z2);
-                    return { x: W / 2 + x2 * S * pp, y: H / 2 + y2 * S * pp, pp: pp };
-                }
                 ctx.globalCompositeOperation = 'lighter';
                 // 背景星空（无限视差）：以略大于视口的“瓦片”无缝平铺，星点随相机偏航(ay)/俯仰(ax)漂移
                 // 并对瓦片尺寸取模回绕 → 永远填满视口、永不到边、永不枯竭（真正的无限星场）；
@@ -1231,23 +1258,32 @@
                     var dy = (((st.y * tileH + (bobY + ax) * 60 * par) % tileH) + tileH) % tileH;
                     var sx = dx - mW, sy = dy - mH;
                     var twk = 0.35 + 0.35 * Math.sin(simTime * st.tws + st.tw0); // 缓慢闪烁
-                    ctx.fillStyle = 'rgba(255,255,255,' + (twk * (0.25 + 0.6 * st.depth)).toFixed(3) + ')';
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, st.sz * (0.6 + 0.7 * st.depth), 0, 6.2832);
-                    ctx.fill();
+                    // 星点直径普遍 < 4px：矩形近似圆点肉眼无差，fillRect 远快于逐点 arc 路径
+                    var sr2 = st.sz * (0.6 + 0.7 * st.depth);
+                    ctx.fillStyle = whiteA(twk * (0.25 + 0.6 * st.depth));
+                    ctx.fillRect(sx - sr2, sy - sr2, sr2 * 2, sr2 * 2);
                 }
+                // 拖尾绘制：先把整条拖尾重投影进复用数组（原实现每段分配 2 个临时对象，
+                // 每帧约 720 个 → 0 个），再逐段描边；颜色字符串走 hexA 缓存
                 for (var i = 0; i < 3; i++) {
-                    var tp = trail[i];
-                    for (var t = 1; t < tp.length; t++) {
-                        var a = (t / tp.length) * 0.5;
-                        var p0 = projPt(tp[t - 1]), p1 = projPt(tp[t]);
+                    var tp = trail[i], tn = tp.length;
+                    while (_tx.length < tn) { _tx.push(0); _ty.push(0); _tp.push(0); }
+                    for (var t = 0; t < tn; t++) {
+                        var p = tp[t];
+                        var x1 = p.x * cyr + p.z * syr, z1 = -p.x * syr + p.z * cyr, y1 = p.y;
+                        var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr;
+                        var pp = camZ / (camZ - z2);
+                        _tx[t] = W / 2 + x1 * S * pp; _ty[t] = H / 2 + y2 * S * pp; _tp[t] = pp;
+                    }
+                    for (var t = 1; t < tn; t++) {
+                        var a = (t / tn) * 0.5;
                         // 拖尾按深度调制：近处粗亮、远处细暗，强化纵深
-                        var dep = Math.max(0.45, Math.min(1.6, 0.45 * (p0.pp + p1.pp)));
+                        var dep = Math.max(0.45, Math.min(1.6, 0.45 * (_tp[t - 1] + _tp[t])));
                         ctx.strokeStyle = hexA(bodies[i].c, a * 0.5 * dep);
-                        ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tp.length) * dep);
+                        ctx.lineWidth = Math.max(1, proj[i].r * 0.5 * (t / tn) * dep);
                         ctx.beginPath();
-                        ctx.moveTo(p0.x, p0.y);
-                        ctx.lineTo(p1.x, p1.y);
+                        ctx.moveTo(_tx[t - 1], _ty[t - 1]);
+                        ctx.lineTo(_tx[t], _ty[t]);
                         ctx.stroke();
                     }
                 }
