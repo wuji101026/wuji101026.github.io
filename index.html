@@ -278,6 +278,9 @@
         /* ========== 通用容器 ========== */
         .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 clamp(18px, 5vw, 56px); }
         section { scroll-margin-top: calc(var(--nav-h) + 16px); }
+        /* 离屏区块跳过渲染：降低初始布局/滚动开销（含内在尺寸防滚动条跳动） */
+        #projects { content-visibility: auto; contain-intrinsic-size: auto 760px; }
+        #contact { content-visibility: auto; contain-intrinsic-size: auto 460px; }
 
         /* ========== Hero ========== */
         .hero {
@@ -335,8 +338,9 @@
             border: 1px solid transparent;
             /* 更柔的缓动：接近用短缓动跟手，离开用长缓动回弹，避免「啪」地弹起 */
             transition: transform 0.3s cubic-bezier(.22,1,.36,1), box-shadow 0.35s ease, background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-            will-change: transform;
         }
+        /* will-change 仅在悬浮时开启，避免所有按钮常驻合成层（省内存、防图层爆炸） */
+        .btn:hover { will-change: transform; }
         .btn-primary {
             color: #fff;
             background: linear-gradient(135deg, var(--accent), var(--accent-3));
@@ -458,6 +462,7 @@
             border-color: var(--border-strong);
             background: var(--panel-hover);
             box-shadow: var(--shadow);
+            will-change: transform;
         }
         .card-project:hover::after { opacity: 1; }
         .card-project .p-icon {
@@ -561,7 +566,7 @@
 
         /* ========== 滚动揭示 ========== */
         .reveal { opacity: 0; }
-        .reveal.in { animation: revealIn 0.8s cubic-bezier(.16,1,.36,1) both; will-change: opacity, transform; }
+        .reveal.in { animation: revealIn 0.8s cubic-bezier(.16,1,.36,1) both; }
         @keyframes revealIn {
             from { opacity: 0; transform: translateY(26px) scale(0.985); }
             to   { opacity: 1; transform: none; }
@@ -1015,9 +1020,9 @@
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll();
 
-        // ========== 三体运动（3D 引力模拟 + 透视投影） ==========
-        // 采用经典的 figure-eight（8 字）周期解作基础动力学，再对平面做缓慢 3D 旋转，
-        // 配合透视投影 → 三颗发光星体在三维空间里绕飞，带拖尾与引力三角网。
+        // ========== 三体运动（真实牛顿引力 · 混沌模拟） ==========
+        // 随机初始条件 + 牛顿引力实时积分（verlet）。对初值极度敏感，轨迹不可预测，
+        // 每次刷新都是不同的“宇宙”；天体被甩飞后自动重新播种。带拖尾与引力三角网。
         (function () {
             var canvas = document.getElementById('threeBody');
             if (!canvas) return;
@@ -1039,14 +1044,28 @@
             window.addEventListener('resize', resize);
 
             var colors = ['#8b6dff', '#5ad1ff', '#ff6fb0']; // accent / accent-2 / accent-3
-            var G = 1, SUB_H = 0.004, SPEED = 0.55, TRAIL = 24;
-            // figure-eight 初始条件（归一化单位，等质量，G=1）
-            var bodies = [
-                { x: 0.97000436, y: -0.24308753, z: 0, vx: 0.466203685, vy: 0.43236573, vz: 0, m: 1, c: colors[0] },
-                { x: -0.97000436, y: 0.24308753, z: 0, vx: 0.466203685, vy: 0.43236573, vz: 0, m: 1, c: colors[1] },
-                { x: 0, y: 0, z: 0, vx: -0.93240737, vy: -0.86473146, vz: 0, m: 1, c: colors[2] }
-            ];
-            var trail = [[], [], []];
+            var G = 1, SOFT = 0.05, SUB_H = 0.004, SPEED = 0.55, TRAIL = 24;
+            var bodies = [], trail = [[], [], []];
+            // 真正的混沌三体：随机初始条件 + 牛顿引力实时积分
+            // （不再使用稳定的 8 字周期解——那只是“看起来像”三体，其实是确定的循环）
+            function seed() {
+                bodies = [];
+                for (var i = 0; i < 3; i++) {
+                    var ang = Math.random() * Math.PI * 2, rad = 0.3 + Math.random() * 0.8;
+                    var sp = 0.25 + Math.random() * 0.45, va = Math.random() * Math.PI * 2;
+                    bodies.push({
+                        x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, z: (Math.random() - 0.5) * 0.5,
+                        vx: Math.cos(va) * sp, vy: Math.sin(va) * sp, vz: (Math.random() - 0.5) * 0.35,
+                        m: 0.8 + Math.random() * 0.5, c: colors[i]
+                    });
+                }
+                // 消去总动量，避免整体漂移；质心留在原点附近
+                var px = 0, py = 0, pz = 0, M = 0;
+                for (var i = 0; i < 3; i++) { px += bodies[i].m * bodies[i].vx; py += bodies[i].m * bodies[i].vy; pz += bodies[i].m * bodies[i].vz; M += bodies[i].m; }
+                for (var i = 0; i < 3; i++) { bodies[i].vx -= px / M; bodies[i].vy -= py / M; bodies[i].vz -= pz / M; }
+                trail = [[], [], []];
+            }
+            seed();
 
             function accel() {
                 var a = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }];
@@ -1056,9 +1075,9 @@
                         var dx = bodies[j].x - bodies[i].x,
                             dy = bodies[j].y - bodies[i].y,
                             dz = bodies[j].z - bodies[i].z;
-                        var d2 = dx * dx + dy * dy + dz * dz;
+                        var d2 = dx * dx + dy * dy + dz * dz + SOFT * SOFT;
                         var inv = 1 / Math.sqrt(d2);
-                        var f = G * bodies[j].m * inv * inv * inv; // G*m/d^3
+                        var f = G * bodies[j].m * inv * inv * inv; // G*m/d^3（含软化，避免近距离奇点）
                         a[i].x += f * dx; a[i].y += f * dy; a[i].z += f * dz;
                     }
                 }
@@ -1084,35 +1103,54 @@
             }
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
+            var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
             function step(now) {
                 if (!visible) { rafOn = false; return; }
+                requestAnimationFrame(step);
                 if (!last) last = now;
-                var rdt = Math.min((now - last) / 1000, 0.033); last = now;
+                var elapsed = now - last;
+                if (elapsed < FRAME_MS) return; // 未到目标帧：仅排队，跳过本轮计算与绘制
+                var rdt = Math.min(elapsed / 1000, 0.05); last = now;
                 var adv = SPEED * rdt;
                 var n = Math.max(1, Math.round(adv / SUB_H));
                 var h = adv / n;
                 for (var s = 0; s < n; s++) { verlet(h); simTime += h; }
                 draw();
-                requestAnimationFrame(step);
             }
 
+            var fitScale = W * 0.24; // 自适应缩放（平滑跟随，避免天体被甩出画面）
             function draw() {
                 ctx.clearRect(0, 0, W, H);
+                // 质心回正：消去整体漂移，让三体始终居中
+                var cx = 0, cy = 0, cz = 0;
+                for (var i = 0; i < 3; i++) { cx += bodies[i].x; cy += bodies[i].y; cz += bodies[i].z; }
+                cx /= 3; cy /= 3; cz /= 3;
+                // 自适应缩放 + 甩飞检测
+                var R = 0;
+                for (var i = 0; i < 3; i++) {
+                    var d = Math.hypot(bodies[i].x - cx, bodies[i].y - cy, bodies[i].z - cz);
+                    if (d > R) R = d;
+                }
+                var targetS = (Math.min(W, H) * 0.42) / Math.max(R * 1.2, 0.6);
+                fitScale += (targetS - fitScale) * 0.06;
+                if (R > 5.5) seed(); // 有天体被甩飞 → 重新播种（新的混沌宇宙）
+
                 var ax = 1.0 + 0.22 * Math.sin(simTime * 0.15), ay = simTime * 0.35;
                 var cyr = Math.cos(ay), syr = Math.sin(ay), cxr = Math.cos(ax), sxr = Math.sin(ax);
-                var S = W * 0.24, camZ = 3.2;
+                var camZ = 3.2, S = fitScale;
                 var proj = [];
                 for (var i = 0; i < 3; i++) {
                     var b = bodies[i];
+                    var rx = b.x - cx, ry = b.y - cy, rz = b.z - cz;
                     // 绕 Y 轴旋转
-                    var x1 = b.x * cyr + b.z * syr, z1 = -b.x * syr + b.z * cyr, y1 = b.y;
+                    var x1 = rx * cyr + rz * syr, z1 = -rx * syr + rz * cyr, y1 = ry;
                     // 绕 X 轴旋转
                     var y2 = y1 * cxr - z1 * sxr, z2 = y1 * sxr + z1 * cxr, x2 = x1;
                     var persp = camZ / (camZ - z2);
                     proj.push({
                         x: W / 2 + x2 * S * persp,
                         y: H / 2 + y2 * S * persp,
-                        r: Math.max(2, W * 0.05 * persp),
+                        r: Math.max(2, S * 0.05 * persp),
                         depth: z2, c: b.c
                     });
                 }
