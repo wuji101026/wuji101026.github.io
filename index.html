@@ -65,6 +65,8 @@
         html {
             scroll-behavior: smooth;
             scroll-padding-top: var(--nav-h);
+            /* 滚动条槽常驻：打开/关闭文章浮层锁滚动时不再因滚动条出现/消失引发整页重排（"卡一下"主因之一） */
+            scrollbar-gutter: stable;
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
         }
@@ -315,6 +317,7 @@
         /* 离屏区块跳过渲染：降低初始布局/滚动开销（含内在尺寸防滚动条跳动） */
         #projects { content-visibility: auto; contain-intrinsic-size: auto 760px; }
         #contact { content-visibility: auto; contain-intrinsic-size: auto 460px; }
+        #articles { content-visibility: auto; contain-intrinsic-size: auto 700px; }
 
         /* ========== Hero ========== */
         .hero {
@@ -630,6 +633,147 @@
            所有动画（背景流光、文字渐变流光、三体轨道旋转、Hero 入场、滚动揭示、
            磁力按钮、卡片 3D 倾斜、光标光晕、平滑回到顶部）一律按设备是否支持 hover 决定是否运行，
            忽略该无障碍偏好。此为站点所有者主动决定。 */
+        /* ========== 文章 ========== */
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 18px;
+        }
+        .card-article {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 24px;
+            border-radius: 20px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            text-decoration: none;
+            color: inherit;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(.16,1,.3,1), border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-article::after {
+            content: "";
+            position: absolute; inset: 0;
+            background: radial-gradient(120% 80% at 100% 0%, rgba(139,109,255,0.16), transparent 55%);
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .card-article:hover {
+            transform: translateY(-6px);
+            border-color: var(--border-strong);
+            background: var(--panel-hover);
+            box-shadow: var(--shadow);
+        }
+        .card-article:hover::after { opacity: 1; }
+        .card-article .a-cover {
+            width: 52px; height: 52px; flex-shrink: 0; display: grid; place-items: center;
+            font-size: 26px; border-radius: 14px; overflow: hidden;
+            background: linear-gradient(135deg, var(--accent), var(--accent-3));
+            box-shadow: 0 10px 24px -10px var(--glow);
+        }
+        .card-article .a-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        /* 阅读页封面大图 */
+        .article-head .a-cover-banner {
+            width: 100%; max-height: 300px; border-radius: 16px; overflow: hidden;
+            margin-bottom: 24px; background: var(--bg-soft); box-shadow: var(--shadow);
+        }
+        .article-head .a-cover-banner img { width: 100%; height: 100%; max-height: 300px; object-fit: cover; display: block; }
+        .card-article .a-title { font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.3; }
+        .card-article .a-excerpt { font-size: 14px; color: var(--text-muted); line-height: 1.55; flex: 1; }
+        .card-article .a-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+        .card-article .a-meta { display: flex; align-items: center; gap: 10px; margin-top: auto; font-size: 12.5px; color: var(--text-faint); }
+        .card-article .a-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); }
+
+        /* 文章阅读浮层 */
+        .article-view {
+            position: fixed; inset: 0; z-index: 1000;
+            /* 背景直接沿用三体运动：薄薄一层本色压暗，三体在其下清晰可见（非毛玻璃、非悬浮卡片） */
+            background: color-mix(in srgb, var(--bg) 35%, transparent);
+            overflow-y: auto;
+            opacity: 0; visibility: hidden;
+            transform: translateY(12px);
+            transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear 0.35s;
+        }
+        .article-view.open {
+            opacity: 1; visibility: visible; transform: none;
+            transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s;
+        }
+        .article-bar {
+            position: sticky; top: 0; z-index: 2;
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px clamp(18px, 5vw, 56px);
+            background: var(--nav-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border);
+        }
+        .article-back {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 16px; border-radius: 12px;
+            font-size: 14px; font-weight: 650; cursor: pointer;
+            color: var(--text); background: var(--panel); border: 1px solid var(--border);
+            transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+        }
+        .article-back:hover { background: var(--panel-hover); border-color: var(--border-strong); }
+        .article-back:active { transform: scale(0.96); }
+        .article-bar .a-title-mini {
+            font-size: 15px; color: var(--text-muted); font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .article-shell {
+            max-width: 760px; margin: 0 auto;
+            padding: clamp(28px, 6vw, 64px) clamp(18px, 5vw, 40px) 120px;
+            /* 文字直接浮在三体背景上：用背景同色文字阴影提升可读性，不做纸面/卡片 */
+            text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 75%, transparent);
+        }
+        .article-head { margin-bottom: 32px; }
+        .article-head h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; margin-bottom: 14px; }
+        .article-head .a-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--text-faint); font-size: 13.5px; }
+        .article-head .a-meta-row .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-faint); }
+
+        /* 正文排版 */
+        .article-content { font-size: 16.5px; line-height: 1.85; color: var(--text-2); }
+        .article-content > * + * { margin-top: 1.1em; }
+        .article-content h1, .article-content h2, .article-content h3 { color: var(--text); font-weight: 750; line-height: 1.3; margin-top: 1.8em; }
+        .article-content h1 { font-size: 1.7em; }
+        .article-content h2 { font-size: 1.4em; }
+        .article-content h3 { font-size: 1.18em; }
+        .article-content a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+        .article-content a:hover { color: var(--accent-2); }
+        .article-content strong { color: var(--text); font-weight: 700; }
+        .article-content em { color: var(--text); }
+        .article-content ul, .article-content ol { padding-left: 1.4em; }
+        .article-content li { margin-top: 0.4em; }
+        .article-content code {
+            font-family: "SF Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+            font-size: 0.9em; padding: 2px 7px; border-radius: 7px;
+            background: var(--bg-soft); border: 1px solid var(--border); color: var(--accent-2);
+        }
+        .article-content pre {
+            padding: 18px 20px; border-radius: 14px; overflow-x: auto;
+            background: var(--bg-soft); border: 1px solid var(--border);
+        }
+        .article-content pre code { background: none; border: none; padding: 0; color: var(--text); font-size: 13.5px; line-height: 1.7; }
+        .article-content blockquote {
+            margin: 1.2em 0; padding: 12px 20px; border-left: 3px solid var(--accent);
+            background: var(--panel); border-radius: 0 12px 12px 0; color: var(--text);
+        }
+        .article-content hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+        .article-content table { width: 100%; border-collapse: collapse; font-size: 14.5px; border-radius: 12px; overflow: hidden; }
+        .article-content th, .article-content td { padding: 10px 14px; border: 1px solid var(--border); text-align: left; }
+        .article-content th { background: var(--panel); color: var(--text); font-weight: 700; }
+        .article-content img { max-width: 100%; border-radius: 12px; }
+
+        .article-state { text-align: center; color: var(--text-muted); padding: 40px 0; line-height: 1.7; }
+
+        @media (max-width: 560px) {
+            .card-article { padding: 20px; gap: 10px; }
+            .article-shell { padding-top: 28px; }
+            .article-content { font-size: 16px; }
+        }
+
     </style>
     <script>
         // 防首屏闪烁（FOUC）：在 <body> 解析前定好主题
@@ -659,6 +803,7 @@
         <div class="nav-links">
             <a href="#top" class="active">首页</a>
             <a href="#projects">项目</a>
+            <a href="#articles">文章</a>
             <a href="#contact">联系</a>
         </div>
         <div class="nav-right">
@@ -671,6 +816,7 @@
     <div class="mobile-menu" id="mobileMenu">
         <a href="#top" class="active">首页</a>
         <a href="#projects">项目</a>
+        <a href="#articles">文章</a>
         <a href="#contact">联系</a>
     </div>
 
@@ -690,7 +836,7 @@
     <section class="wrap section-pad" id="projects">
         <div class="sec-head reveal">
             <div class="sec-tag">Projects</div>
-            <h2>探索 / 项目</h2>
+            <h2>项目</h2>
         </div>
         <div class="projects">
             <a class="card-project reveal" href="https://wuji101026.github.io/xueduoduo/" target="_blank" rel="noopener noreferrer">
@@ -707,6 +853,17 @@
             <!-- 需要新增项目，复制上面的 <a class="card-project"> 块即可 -->
         </div>
         <p class="empty-note reveal">更多项目正在路上</p>
+    </section>
+
+    <!-- 文章 -->
+    <section class="wrap section-pad" id="articles">
+        <div class="sec-head reveal">
+            <div class="sec-tag">Writing</div>
+            <h2>文章</h2>
+        </div>
+        <div class="articles-grid" id="article-list">
+            <p class="article-state">正在加载文章列表…</p>
+        </div>
     </section>
 
     <!-- 联系 -->
@@ -734,6 +891,7 @@
             <nav class="f-links" aria-label="页脚导航">
                 <a href="#top">首页</a>
                 <a href="#projects">项目</a>
+                <a href="#articles">文章</a>
                 <a href="#contact">联系</a>
                 <a href="https://github.com/wuji101026" target="_blank" rel="noopener">GitHub</a>
             </nav>
@@ -742,6 +900,18 @@
 
     <!-- 回到顶部 -->
     <button class="to-top" id="toTop" aria-label="返回顶部">↑</button>
+
+    <!-- 文章阅读浮层 -->
+    <div class="article-view" id="article-view" aria-hidden="true">
+        <div class="article-bar">
+            <button class="article-back" id="article-back" type="button">← 返回首页</button>
+            <span class="a-title-mini" id="article-bar-title"></span>
+        </div>
+        <article class="article-shell">
+            <header class="article-head" id="article-head"></header>
+            <div class="article-content" id="article-content"></div>
+        </article>
+    </div>
 
     <script>
         // 主题切换：首屏主题已由 <head> 内联脚本定好，这里接管按钮与偏好
@@ -781,7 +951,7 @@
         document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
 
         // 导航高亮（桌面链接 + 移动菜单同步）
-        var sections = ['top', 'projects', 'contact'].map(function (id) { return document.getElementById(id); });
+        var sections = ['top', 'projects', 'articles', 'contact'].map(function (id) { return document.getElementById(id); });
         var links = document.querySelectorAll('.nav-links a, .mobile-menu a');
         var spy = new IntersectionObserver(function (entries) {
             entries.forEach(function (e) {
@@ -1166,12 +1336,18 @@
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
             var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
+            // 文章浮层打开时：三体仍作背景运行，但降速渲染（~20fps）减轻与半透明浮层的合成争抢，避免打开/返回卡顿
+            function articleViewOpen() {
+                var v = document.getElementById('article-view');
+                return !!(v && v.classList.contains('open'));
+            }
             function step(now) {
                 if (!visible) { rafOn = false; return; }
                 requestAnimationFrame(step);
                 if (!last) last = now;
                 var elapsed = now - last;
-                if (elapsed < FRAME_MS) return; // 未到目标帧：仅排队，跳过本轮计算与绘制
+                var target = articleViewOpen() ? 50 : FRAME_MS; // 浮层打开时降帧（~20fps），物理按真实时间推进故观感速度不变
+                if (elapsed < target) return; // 未到目标帧：仅排队，跳过本轮计算与绘制
                 var rdt = Math.min(elapsed / 1000, 0.05); last = now;
                 var adv = SPEED * rdt;
                 // 自适应子步：近距离遭遇时引力极强，固定步长会注入能量→数值发散(花屏)。
@@ -1468,6 +1644,147 @@
             } else {
                 rafOn = true; requestAnimationFrame(step);
             }
+        })();
+    </script>
+
+    <!-- Markdown 解析（本地 vendor，离线/静态托管可用） -->
+    <script src="vendor/marked.min.js"></script>
+    <script>
+        // ========== 文章系统：.md 文件驱动 ==========
+        (function () {
+            var listEl = document.getElementById('article-list');
+            if (!listEl) return;
+            var view = document.getElementById('article-view');
+            var contentEl = document.getElementById('article-content');
+            var headEl = document.getElementById('article-head');
+            var barTitle = document.getElementById('article-bar-title');
+            var backBtn = document.getElementById('article-back');
+            var manifest = [];
+            var cache = {};
+
+            function fmtDate(s) { return s ? String(s).replace(/-/g, '.') : ''; }
+            // 封面：图片链接/相对路径/data URI 渲染为 <img>；否则按 emoji 文本（向后兼容）
+            function isImg(v) {
+                if (!v) return false;
+                return /^https?:\/\//.test(v) || /^\//.test(v) || /^data:image\//.test(v)
+                    || /\.(png|jpe?g|gif|webp|avif|svg|bmp)$/i.test(v);
+            }
+            function coverHTML(c) {
+                c = c || '📄';
+                return isImg(c) ? '<img src="' + esc(c) + '" alt="" />' : esc(c);
+            }
+            function esc(s) {
+                return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                });
+            }
+
+            function renderList(items) {
+                if (!items || !items.length) {
+                    listEl.innerHTML = '<p class="article-state">还没有文章，敬请期待。</p>';
+                    return;
+                }
+                listEl.innerHTML = items.map(function (a) {
+                    var tags = (a.tags || []).map(function (t) { return '<span class="p-tag">' + esc(t) + '</span>'; }).join('');
+                    return '<a class="card-article reveal" href="#/article/' + encodeURIComponent(a.slug) + '" data-slug="' + esc(a.slug) + '">'
+                        + '<span class="a-cover">' + coverHTML(a.cover) + '</span>'
+                        + '<span class="a-title">' + esc(a.title) + '</span>'
+                        + '<span class="a-excerpt">' + esc(a.excerpt || '') + '</span>'
+                        + '<div class="a-tags">' + tags + '</div>'
+                        + '<div class="a-meta"><span>' + fmtDate(a.date) + '</span></div>'
+                        + '</a>';
+                }).join('');
+                // 入场揭示（独立 observer，适配动态注入的卡片）
+                var io = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+                }, { threshold: 0.12 });
+                listEl.querySelectorAll('.card-article').forEach(function (el, i) {
+                    el.style.animationDelay = (i * 80) + 'ms';
+                    io.observe(el);
+                });
+            }
+
+            function loadManifest() {
+                listEl.innerHTML = '<p class="article-state">正在加载文章列表…</p>';
+                fetch('articles/index.json', { cache: 'no-cache' })
+                    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                    .then(function (data) {
+                        manifest = data || [];
+                        renderList(manifest);
+                        handleHash(); // 支持深链 #/article/slug
+                    })
+                    .catch(function (e) {
+                        listEl.innerHTML = '<p class="article-state">文章列表加载失败：' + esc(e.message)
+                            + '<br>请确认通过 http(s) 访问（直接 file:// 打开会被浏览器拦截 fetch）。</p>';
+                    });
+            }
+
+            function findArticle(slug) {
+                for (var i = 0; i < manifest.length; i++) if (manifest[i].slug === slug) return manifest[i];
+                return null;
+            }
+
+            function openArticle(slug) {
+                var meta = findArticle(slug);
+                view.classList.add('open');
+                view.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                barTitle.textContent = meta ? meta.title : '';
+                view.scrollTop = 0;
+                headEl.innerHTML = '<p class="article-state">正在加载…</p>';
+                contentEl.innerHTML = '';
+                if (cache[slug]) { renderArticle(meta, cache[slug]); return; }
+                fetch('articles/' + encodeURIComponent(slug) + '.md', { cache: 'no-cache' })
+                    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+                    .then(function (md) { cache[slug] = md; renderArticle(meta, md); })
+                    .catch(function (e) {
+                        headEl.innerHTML = '<h1>加载失败</h1>';
+                        contentEl.innerHTML = '<p class="article-state">无法读取文章：' + esc(e.message) + '</p>';
+                    });
+            }
+
+            function renderArticle(meta, md) {
+                var html = (window.marked && marked.parse) ? marked.parse(md) : '<pre>' + esc(md) + '</pre>';
+                var metaRow = '';
+                if (meta) {
+                    var tags = (meta.tags || []).map(function (t) { return '<span class="p-tag">' + esc(t) + '</span>'; }).join(' ');
+                    metaRow = '<div class="a-meta-row"><span>' + fmtDate(meta.date) + '</span>'
+                        + (tags ? '<span class="dot"></span>' + tags : '') + '</div>';
+                }
+                var coverBanner = (meta && isImg(meta.cover))
+                    ? '<div class="a-cover-banner"><img src="' + esc(meta.cover) + '" alt="" /></div>' : '';
+                headEl.innerHTML = coverBanner + (meta ? '<h1>' + esc(meta.title) + '</h1>' : '') + metaRow;
+                contentEl.innerHTML = html;
+                view.scrollTop = 0;
+            }
+
+            function closeArticle() {
+                if (!view.classList.contains('open')) return;
+                view.classList.remove('open');
+                view.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+                setTimeout(function () {
+                    if (!view.classList.contains('open')) { headEl.innerHTML = ''; contentEl.innerHTML = ''; }
+                }, 400);
+            }
+
+            function handleHash() {
+                var h = location.hash || '';
+                if (h.indexOf('#/article/') === 0) {
+                    openArticle(decodeURIComponent(h.slice('#/article/'.length)));
+                } else {
+                    closeArticle();
+                }
+            }
+
+            backBtn.addEventListener('click', function () {
+                if (location.hash && location.hash.indexOf('#/article/') === 0) location.hash = 'articles';
+                else closeArticle();
+            });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeArticle(); });
+            window.addEventListener('hashchange', handleHash);
+
+            loadManifest();
         })();
     </script>
 </body>
