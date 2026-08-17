@@ -703,7 +703,7 @@
         /* 文章阅读浮层 */
         .article-view {
             position: fixed; inset: 0; z-index: 1000;
-            /* 背景直接沿用三体运动：薄薄一层本色压暗，三体在其下清晰可见（非毛玻璃、非悬浮卡片） */
+            /* 看文章时三体背景已暂停并隐藏，薄薄一层本色压暗，底层静态 bg-fx 透出（非毛玻璃、非悬浮卡片） */
             background: color-mix(in srgb, var(--bg) 35%, transparent);
             overflow-y: auto;
             opacity: 0; visibility: hidden;
@@ -739,7 +739,7 @@
         .article-shell {
             max-width: 760px; margin: 0 auto;
             padding: clamp(28px, 6vw, 64px) clamp(18px, 5vw, 40px) 120px;
-            /* 文字直接浮在三体背景上：用背景同色文字阴影提升可读性，不做纸面/卡片 */
+            /* 文字浮在静态背景上：用背景同色文字阴影提升可读性，不做纸面/卡片 */
             text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 75%, transparent);
         }
         .article-head { margin-bottom: 32px; }
@@ -1358,12 +1358,12 @@
                 return s;
             }
 
-            var simTime = 0, last = 0, rafOn = false, visible = true;
+            var simTime = 0, last = 0, rafOn = false, visible = true, paused = false;
             var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
             // 阅读浮层打开时三体仍作背景运行；不再降帧——降渲染帧率只会让运动看起来卡顿，
             // 而物理始终按真实时间推进，低帧反而显得掉帧。保持统一帧率，观感更顺滑。
             function step(now) {
-                if (!visible) { rafOn = false; return; }
+                if (!visible || paused) { rafOn = false; return; }
                 requestAnimationFrame(step);
                 if (!last) last = now;
                 var elapsed = now - last;
@@ -1664,6 +1664,23 @@
                 }, { threshold: 0 }).observe(host);
             } else {
                 rafOn = true; requestAnimationFrame(step);
+            }
+
+            // 看文章时暂停三体背景：消除打开浮层的卡顿，背景回落为静态 bg-fx（“原来的”背景）
+            var avEl = document.getElementById('article-view');
+            if (avEl && 'MutationObserver' in window) {
+                new MutationObserver(function () {
+                    var open = avEl.classList.contains('open');
+                    if (open === paused) return;
+                    paused = open;
+                    if (paused) {
+                        host.style.opacity = '0';          // 视觉隐藏三体，露出底层 bg-fx
+                        rafOn = false;                     // step 下一帧自停，停止绘制与物理计算
+                    } else {
+                        host.style.opacity = '';
+                        if (visible && !rafOn) { rafOn = true; last = 0; requestAnimationFrame(step); }
+                    }
+                }).observe(avEl, { attributes: true, attributeFilter: ['class'] });
             }
         })();
     </script>
