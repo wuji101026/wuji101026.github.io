@@ -703,8 +703,8 @@
         /* 文章阅读浮层 */
         .article-view {
             position: fixed; inset: 0; z-index: 1000;
-            /* 看文章时三体背景已暂停并隐藏，薄薄一层本色压暗，底层静态 bg-fx 透出（非毛玻璃、非悬浮卡片） */
-            background: color-mix(in srgb, var(--bg) 35%, transparent);
+            /* 独立阅读页：实色不透明背景，彻底盖住底层三体/背景 → 文字不再“悬浮”在背景之上 */
+            background: var(--bg);
             overflow-y: auto;
             opacity: 0; visibility: hidden;
             transform: translateY(12px);
@@ -739,8 +739,7 @@
         .article-shell {
             max-width: 760px; margin: 0 auto;
             padding: clamp(28px, 6vw, 64px) clamp(18px, 5vw, 40px) 120px;
-            /* 文字浮在静态背景上：用背景同色文字阴影提升可读性，不做纸面/卡片 */
-            text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 75%, transparent);
+            /* 独立阅读页：文字直接铺在实色背景上，不叠加投影/纸面（不再悬浮） */
         }
         .article-head { margin-bottom: 32px; }
         .article-head h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; margin-bottom: 14px; }
