@@ -741,6 +741,40 @@
             padding: clamp(28px, 6vw, 64px) clamp(18px, 5vw, 40px) 120px;
             /* 独立阅读页：文字直接铺在实色背景上，不叠加投影/纸面（不再悬浮） */
         }
+        /* 文章布局：左侧 TOC + 右侧正文（宽屏）；窄屏折叠为单列 */
+        .article-layout {
+            display: grid; grid-template-columns: 220px minmax(0, 1fr);
+            gap: 48px; max-width: 1180px; margin: 0 auto; align-items: start;
+        }
+        .article-toc {
+            position: sticky; top: calc(var(--nav-h) + 18px); align-self: start;
+            max-height: calc(100vh - var(--nav-h) - 40px); overflow-y: auto;
+            padding: 4px 0;
+        }
+        .article-toc .toc-title {
+            font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--text-faint); margin: 10px 0 12px; padding-left: 14px;
+        }
+        .article-toc .toc-nav { display: flex; flex-direction: column; gap: 2px; border-left: 1px solid var(--border); }
+        .article-toc .toc-link {
+            display: block; padding: 6px 14px; font-size: 13.5px; line-height: 1.45;
+            color: var(--text-muted); text-decoration: none; border-left: 2px solid transparent;
+            margin-left: -1px; transition: color .2s ease, border-color .2s ease, background .2s ease;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .article-toc .toc-link.lvl-2 { padding-left: 26px; font-size: 13px; }
+        .article-toc .toc-link.lvl-3 { padding-left: 40px; font-size: 12.5px; color: var(--text-faint); }
+        .article-toc .toc-link:hover { color: var(--text); }
+        .article-toc .toc-link.active {
+            color: var(--accent); border-left-color: var(--accent); font-weight: 650;
+            background: color-mix(in srgb, var(--accent) 8%, transparent);
+        }
+        /* 标题锚点不被 sticky 顶栏遮挡 */
+        .article-content h1, .article-content h2, .article-content h3 { scroll-margin-top: calc(var(--nav-h) + 16px); }
+        @media (max-width: 980px) {
+            .article-layout { display: block; }
+            .article-toc { display: none; }
+        }
         .article-head { margin-bottom: 32px; }
         .article-head h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; margin-bottom: 14px; }
         .article-head .a-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--text-faint); font-size: 13.5px; }
@@ -930,10 +964,13 @@
             <button class="article-back" id="article-back" type="button">← 返回首页</button>
             <span class="a-title-mini" id="article-bar-title"></span>
         </div>
-        <article class="article-shell">
-            <header class="article-head" id="article-head"></header>
-            <div class="article-content" id="article-content"></div>
-        </article>
+        <div class="article-layout">
+            <aside class="article-toc" id="article-toc" aria-label="文章目录"></aside>
+            <article class="article-shell">
+                <header class="article-head" id="article-head"></header>
+                <div class="article-content" id="article-content"></div>
+            </article>
+        </div>
     </div>
 
     <script>
@@ -1698,6 +1735,7 @@
             var headEl = document.getElementById('article-head');
             var barTitle = document.getElementById('article-bar-title');
             var backBtn = document.getElementById('article-back');
+            var tocEl = document.getElementById('article-toc');
             var manifest = [];
             var cache = {};
 
@@ -1897,6 +1935,57 @@
                 renderMathIn(contentEl);          // $...$ / $$...$$ 渲染为 KaTeX 公式
                 highlightLatexBlocks(contentEl);  // ```latex 代码块关键字高亮（模仿学多多项目）
                 view.scrollTop = 0;
+                buildTOC();
+            }
+
+            // ---------- 自动目录（TOC）：扫描 h1/h2/h3，点击跳转 + 当前章节高亮 ----------
+            var spyHeads = [], spyLinks = {}, spyRAF = 0;
+            function buildTOC() {
+                if (!tocEl || !contentEl) return;
+                var heads = contentEl.querySelectorAll('h1, h2, h3');
+                if (!heads.length) { tocEl.innerHTML = ''; tocEl.classList.remove('has-toc'); view.removeEventListener('scroll', onSpy); return; }
+                var html = '<div class="toc-title">目录</div><nav class="toc-nav">';
+                for (var i = 0; i < heads.length; i++) {
+                    var h = heads[i];
+                    if (!h.id) h.id = 'toc-h-' + i;
+                    var lvl = h.tagName === 'H1' ? 'lvl-1' : (h.tagName === 'H2' ? 'lvl-2' : 'lvl-3');
+                    html += '<a class="toc-link ' + lvl + '" href="#' + h.id + '" data-id="' + h.id + '">' + esc(h.textContent) + '</a>';
+                }
+                html += '</nav>';
+                tocEl.innerHTML = html;
+                tocEl.classList.add('has-toc');
+                var links = tocEl.querySelectorAll('.toc-link');
+                for (var j = 0; j < links.length; j++) {
+                    links[j].addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var t = document.getElementById(this.getAttribute('data-id'));
+                        if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                }
+                startSpy();
+            }
+            function startSpy() {
+                spyHeads = Array.prototype.slice.call(contentEl.querySelectorAll('h1, h2, h3'));
+                spyLinks = {};
+                var links = tocEl.querySelectorAll('.toc-link');
+                for (var i = 0; i < links.length; i++) spyLinks[links[i].getAttribute('data-id')] = links[i];
+                view.removeEventListener('scroll', onSpy);
+                view.addEventListener('scroll', onSpy, { passive: true });
+                onSpy();
+            }
+            function onSpy() {
+                if (spyRAF) return;
+                spyRAF = requestAnimationFrame(function () {
+                    spyRAF = 0;
+                    var vTop = view.getBoundingClientRect().top;
+                    var threshold = 130;
+                    var current = spyHeads.length ? spyHeads[0].id : null;
+                    for (var i = 0; i < spyHeads.length; i++) {
+                        var rel = spyHeads[i].getBoundingClientRect().top - vTop;
+                        if (rel <= threshold) current = spyHeads[i].id; else break;
+                    }
+                    for (var id in spyLinks) { if (spyLinks.hasOwnProperty(id)) spyLinks[id].classList.toggle('active', id === current); }
+                });
             }
 
             function closeArticle() {
@@ -1904,8 +1993,9 @@
                 view.classList.remove('open');
                 view.setAttribute('aria-hidden', 'true');
                 document.body.style.overflow = '';
+                view.removeEventListener('scroll', onSpy);
                 setTimeout(function () {
-                    if (!view.classList.contains('open')) { headEl.innerHTML = ''; contentEl.innerHTML = ''; }
+                    if (!view.classList.contains('open')) { headEl.innerHTML = ''; contentEl.innerHTML = ''; if (tocEl) { tocEl.innerHTML = ''; tocEl.classList.remove('has-toc'); } }
                 }, 400);
             }
 
