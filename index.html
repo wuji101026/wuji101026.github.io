@@ -1360,17 +1360,14 @@
 
             var simTime = 0, last = 0, rafOn = false, visible = true;
             var FRAME_MS = 33; // ~30fps：纯装饰动画，帧率减半即可，CPU 占用约降一半
-            // 文章浮层打开时：三体仍作背景运行，但降速渲染（~20fps）减轻与半透明浮层的合成争抢，避免打开/返回卡顿
-            function articleViewOpen() {
-                var v = document.getElementById('article-view');
-                return !!(v && v.classList.contains('open'));
-            }
+            // 阅读浮层打开时三体仍作背景运行；不再降帧——降渲染帧率只会让运动看起来卡顿，
+            // 而物理始终按真实时间推进，低帧反而显得掉帧。保持统一帧率，观感更顺滑。
             function step(now) {
                 if (!visible) { rafOn = false; return; }
                 requestAnimationFrame(step);
                 if (!last) last = now;
                 var elapsed = now - last;
-                var target = articleViewOpen() ? 50 : FRAME_MS; // 浮层打开时降帧（~20fps），物理按真实时间推进故观感速度不变
+                var target = FRAME_MS;
                 if (elapsed < target) return; // 未到目标帧：仅排队，跳过本轮计算与绘制
                 var rdt = Math.min(elapsed / 1000, 0.05); last = now;
                 var adv = SPEED * rdt;
