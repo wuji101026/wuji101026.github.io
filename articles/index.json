@@ -1,4 +1,14 @@
 [
+   {
+    "slug": "logic",
+    "title": "逻辑",
+    "date": "2026-08-17 16:53:16",
+    "cover": "📄",
+    "tags": [
+      "高中数学"
+    ],
+    "excerpt": "逻辑符号"
+  },
   {
     "slug": "hello-blong",
     "title": "我的第一篇文章",
